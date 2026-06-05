@@ -19,6 +19,7 @@ import json
 from barcode import Code39
 from barcode.writer import ImageWriter
 import uvicorn
+import gc
 
 app = FastAPI(title="Gerador de Comandas")
 
@@ -240,8 +241,8 @@ async def gerar_pdf(
             if not img:
                 continue
             img_rgb = img.convert("RGB")
+            del img  # libera RGBA imediatamente após converter
             if primeira:
-                # Guarda referência da primeira para o save final
                 primeira_img = img_rgb
                 primeira = False
             else:
@@ -257,7 +258,9 @@ async def gerar_pdf(
         )
         # Libera memória imediatamente após salvar
         del paginas_extras
+        del primeira_img
         pdf_buf.seek(0)
+        gc.collect()   # força limpeza antes de retornar
 
         nome_base = f"comandas_{inicio}_a_{fim}"
 
@@ -375,6 +378,7 @@ def _fonte_embutida_path():
 
 _FONTE_EMBUTIDA = None
 _FONTE_CACHE: dict = {}
+_FONTE_CACHE_MAX = 30   # evita cache ilimitado em produção
 
 def carregar_fonte(caminho, tamanho):
     global _FONTE_EMBUTIDA
@@ -382,6 +386,10 @@ def carregar_fonte(caminho, tamanho):
     chave = (caminho or '', tamanho)
     if chave in _FONTE_CACHE:
         return _FONTE_CACHE[chave]
+
+    # Remove entrada mais antiga se o cache estiver cheio
+    if len(_FONTE_CACHE) >= _FONTE_CACHE_MAX:
+        _FONTE_CACHE.pop(next(iter(_FONTE_CACHE)))
 
     fonte = None
 
