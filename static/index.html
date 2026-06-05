@@ -284,6 +284,30 @@
   #crop-img { display:block; max-width:100%; }
   .crop-actions { display:flex; gap:6px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
 
+  /* ── Render warm-up banner ── */
+  #render-warmup {
+    position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:9999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  }
+  #render-warmup p { color:#fff; font-size:15px; font-weight:500; }
+  #render-warmup small { color:rgba(255,255,255,.65); font-size:12px; }
+  .warmup-spinner {
+    width:40px; height:40px; border:4px solid rgba(255,255,255,.2);
+    border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Font preview ── */
+  #fonte-preview-box {
+    margin-top:4px; padding:8px 10px; background:var(--surface2);
+    border:1px solid var(--border); border-radius:var(--radius);
+    font-size:18px; min-height:36px; display:none; line-height:1.3;
+    color:var(--text); overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  }
+
+  /* ── Canvas cm hint ── */
+  .cv-cm-hint { font-size:10px; color:var(--text2); margin-top:3px; }
+
   /* ── Toolbar groups ── */
   .tb-group {
     display:flex; align-items:center; gap:2px;
@@ -410,6 +434,7 @@
     <button class="zoom-btn" onclick="changeZoom(-0.1)" title="Reduzir zoom (Ctrl+scroll)">−</button>
     <span id="zoom-label">100%</span>
     <button class="zoom-btn" onclick="changeZoom(0.1)" title="Aumentar zoom (Ctrl+scroll)">+</button>
+    <button class="zoom-btn" onclick="fitToScreen()" title="Encaixar canvas na tela" style="font-size:12px;width:auto;padding:0 6px">⊡</button>
   </div>
   <div class="tb-spacer"></div>
 
@@ -449,6 +474,7 @@
         <div><span class="prop-lbl">Largura (px)</span><input type="number" id="cv-w" value="400" onchange="resizeCanvas()" title="Exemplo: 200mm × 3.78 ≈ 756px"></div>
         <div><span class="prop-lbl">Altura (px)</span><input type="number" id="cv-h" value="600" onchange="resizeCanvas()" title="Exemplo: 280mm × 3.78 ≈ 1058px"></div>
       </div>
+      <div id="cv-cm-hint" class="cv-cm-hint"></div>
       <div class="prop-lbl" style="margin-bottom:6px">Fundo do canvas</div>
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <button class="tool-btn active" id="bg-tab-cor" onclick="setBgTab('cor')" style="flex:1;margin:0;justify-content:center;font-size:11px">🎨 Cor sólida</button>
@@ -501,9 +527,10 @@
 
     <div class="psec">
       <div class="plabel">Fonte (para PDF)</div>
-      <select id="fonte-sel" class="inp-mb">
+      <select id="fonte-sel" class="inp-mb" onchange="previewFonte(this.value)">
         <option value="">-- Nenhuma (padrão) --</option>
       </select>
+      <div id="fonte-preview-box">Aa Bb — Texto da comanda 1234</div>
       <div class="notice" id="fonte-notice">Coloque arquivos .ttf na pasta <strong>fonts/</strong> e recarregue.</div>
     </div>
 
@@ -961,7 +988,8 @@
     </label>
     <div class="modal-btns">
       <button class="tb-btn" onclick="closeModal('modal-gerar')">Cancelar</button>
-      <button class="tb-btn primary" onclick="gerarPDF()">Gerar</button>
+      <button class="tb-btn" onclick="gerarAmostra()" title="Gera 1 PDF com a primeira comanda do intervalo">📄 1 PDF amostra</button>
+      <button class="tb-btn primary" onclick="gerarPDF()">⬇ Gerar lote</button>
     </div>
   </div>
 </div>
@@ -1032,6 +1060,13 @@
       <button class="tb-btn" onclick="closeModal('modal-intervalos')">Fechar</button>
     </div>
   </div>
+</div>
+
+<!-- Render warm-up overlay -->
+<div id="render-warmup" style="display:none">
+  <div class="warmup-spinner"></div>
+  <p>⏳ Iniciando servidor...</p>
+  <small>O serviço foi colocado em repouso após inatividade.<br>Aguarde alguns segundos — é automático.</small>
 </div>
 
 <div id="toast"></div>
@@ -1210,6 +1245,7 @@ function resizeCanvas() {
   canvas.style.height = (h * zoom) + 'px';
   canvasWrap.style.width = (w * zoom) + 'px';
   canvasWrap.style.height = (h * zoom) + 'px';
+  atualizarDicaCm();
 }
 
 function changeZoom(delta) {
@@ -1316,9 +1352,11 @@ function mkQRSVG(data, w, h) {
     const timing = (row===6&&col%2===0)||(col===6&&row%2===0);
     const dt = ((seed*row*17+col*31+row*col*7)%3===0);
     const on = finder ? (inner || ((row===0||row===6||col===0||col===6) && (row<=6&&col<=6||row<=6&&col>=14||row>=14&&col<=6))) : timing||dt;
-    if (on) r += `<rect x="${col*cell}" y="${row*cell}" width="${cell}" height="${cell}" fill="black"/>`;
+    const cor = (configSistema && configSistema.qr_cor_modulo) || '#000000';
+    if (on) r += `<rect x="${col*cell}" y="${row*cell}" width="${cell}" height="${cell}" fill="${cor}"/>`;
   }
-  return `<svg width="${s}" height="${s}" xmlns="http://www.w3.org/2000/svg"><rect width="${s}" height="${s}" fill="white"/>${r}</svg>`;
+  const bg = (configSistema && configSistema.qr_fundo === 'transparent') ? 'none' : 'white';
+  return `<svg width="${s}" height="${s}" xmlns="http://www.w3.org/2000/svg"><rect width="${s}" height="${s}" fill="${bg}"/>${r}</svg>`;
 }
 
 function mkBarSVG(num, w, h) {
@@ -1866,6 +1904,113 @@ function closePvOverlay() {
     const h3 = document.querySelector('#modal-preview h3');
     if (h3) h3.textContent = '👁 Configurar Preview';
   }
+}
+
+// ── Render warm-up: detecta se o servidor demorou a responder ────
+(async function detectarWarmup() {
+  const banner = document.getElementById('render-warmup');
+  let timer = setTimeout(() => { if (banner) banner.style.display = 'flex'; }, 1500);
+  try {
+    await fetch('/ping', { signal: AbortSignal.timeout(8000) });
+  } catch {}
+  clearTimeout(timer);
+  if (banner) banner.style.display = 'none';
+})();
+
+// ── onbeforeunload: avisa ao sair com mudanças não salvas ─────────
+window.addEventListener('beforeunload', e => {
+  if (_projetoModificado && elements.length > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// ── Fit to screen ─────────────────────────────────────────────────
+function fitToScreen() {
+  const area  = document.getElementById('canvas-area');
+  const cvW   = parseInt(document.getElementById('cv-w').value) || 400;
+  const cvH   = parseInt(document.getElementById('cv-h').value) || 600;
+  const areaW = area.clientWidth  - 48;
+  const areaH = area.clientHeight - 48;
+  const z = Math.min(areaW / cvW, areaH / cvH, 3);
+  zoom = Math.max(0.1, parseFloat(z.toFixed(2)));
+  document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
+  resizeCanvas(); renderAll();
+}
+
+// ── Canvas: dica de cm ────────────────────────────────────────────
+function atualizarDicaCm() {
+  const w = parseInt(document.getElementById('cv-w').value) || 400;
+  const h = parseInt(document.getElementById('cv-h').value) || 600;
+  const cmW = (w / 96 * 2.54).toFixed(1);
+  const cmH = (h / 96 * 2.54).toFixed(1);
+  const el = document.getElementById('cv-cm-hint');
+  if (el) el.textContent = `≈ ${cmW} × ${cmH} cm (a 96 DPI de tela)`;
+}
+
+// ── Preview de fonte ──────────────────────────────────────────────
+let _fonteFaceCache = {};
+async function previewFonte(caminho) {
+  const box = document.getElementById('fonte-preview-box');
+  if (!box) return;
+  if (!caminho) { box.style.display = 'none'; return; }
+  // Só serve fontes da pasta local (paths relativos)
+  const isLocal = !caminho.includes(':/') && !caminho.startsWith('/usr');
+  if (!isLocal) {
+    box.style.fontFamily = 'inherit';
+    box.style.display = 'block';
+    return;
+  }
+  const nome = caminho.split('/').pop().replace('.ttf','');
+  const url  = '/fonts-preview/' + caminho.split('/').pop();
+  if (!_fonteFaceCache[nome]) {
+    try {
+      const face = new FontFace(nome, `url(${url})`);
+      await face.load();
+      document.fonts.add(face);
+      _fonteFaceCache[nome] = nome;
+    } catch { box.style.display = 'none'; return; }
+  }
+  box.style.fontFamily = `"${nome}", sans-serif`;
+  box.style.display = 'block';
+}
+
+// ── PDF de amostra (1 comanda) ────────────────────────────────────
+async function gerarAmostra() {
+  if (!elements.length) { alert('Adicione elementos ao canvas.'); return; }
+  if (!validarDocumentoQR()) return;
+  const isQR = codeType === 'qr';
+  const ini  = parseInt(document.getElementById(isQR ? 'g-ini' : 'g-ini-bc').value) || 1;
+  showProgressBar(true, '📄 Gerando PDF de amostra...');
+  closeModal('modal-gerar');
+  try {
+    const fd = new FormData();
+    fd.append('template', await buildArquivoTemplate());
+    fd.append('layout',   JSON.stringify(buildLayout()));
+    fd.append('inicio',   ini);
+    fd.append('fim',      ini);
+    fd.append('formato',  'pdf');
+    fd.append('qualidade', qualidadeSelecionada);
+    const r = await fetch('/gerar-pdf', { method: 'POST', body: fd });
+    if (!r.ok) { const t = await r.text(); throw new Error((JSON.parse(t).detail || t)); }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `amostra_comanda_${ini}.pdf`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+    toast('📄 PDF de amostra gerado!');
+  } catch(e) { alert('Erro: ' + e.message); }
+  finally { showProgressBar(false); }
+}
+
+// ── Cancelar geração de lotes ─────────────────────────────────────
+let ivCancelado = false;
+
+function ivCancelar() {
+  ivCancelado = true;
+  document.getElementById('iv-cancelar-btn').disabled = true;
+  document.getElementById('iv-cancelar-btn').textContent = '⏹ Cancelando...';
 }
 
 // ── Trava de segurança: documento obrigatório para QR Code ───────
@@ -2820,10 +2965,10 @@ async function carregarPresets() {
   } catch(e) {
     // fallback se backend não responder
     qualidadePresets = {
-      alta:   { dpi: 300, label: 'Alta (300 DPI)',   ram_pag: 6.7, lote_max: 40  },
-      media:  { dpi: 200, label: 'Média (200 DPI)',  ram_pag: 3.0, lote_max: 160 },
-      normal: { dpi: 150, label: 'Normal (150 DPI)', ram_pag: 1.7, lote_max: 290 },
-      baixa:  { dpi: 96,  label: 'Rápida (96 DPI)',  ram_pag: 0.7, lote_max: 700 },
+      alta:   { dpi: 300, label: 'Alta (300 DPI)',   ram_pag: 6.7, lote_max: 20  },
+      media:  { dpi: 200, label: 'Média (200 DPI)',  ram_pag: 3.0, lote_max: 20  },
+      normal: { dpi: 150, label: 'Normal (150 DPI)', ram_pag: 1.7, lote_max: 20  },
+      baixa:  { dpi: 96,  label: 'Rápida (96 DPI)',  ram_pag: 0.7, lote_max: 20  },
     };
   }
 }
@@ -3059,6 +3204,7 @@ function mostrarSugestaoIntervalos(ini, fim, formato, limite) {
       <span style="flex:1"></span>
       <span id="iv-sel-count" style="font-size:11px;color:var(--text2)">${nLotes} de ${nLotes} selecionados</span>
       <button class="tb-btn primary" id="iv-gerar-btn" onclick="ivIniciarGeracao()" style="margin-left:6px">▶ Gerar selecionados</button>
+      <button class="tb-btn danger" id="iv-cancelar-btn" onclick="ivCancelar()" style="display:none;margin-left:4px">⏹ Cancelar</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto;padding-right:4px;margin-bottom:4px" id="iv-lista">${linhas}</div>
     <div id="iv-progresso" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
@@ -3120,7 +3266,11 @@ async function ivIniciarGeracao() {
   }
 
   // Desabilitar botão e iniciar
+  ivCancelado = false;
   document.getElementById('iv-gerar-btn').disabled = true;
+  document.getElementById('iv-cancelar-btn').style.display = 'inline-flex';
+  document.getElementById('iv-cancelar-btn').disabled = false;
+  document.getElementById('iv-cancelar-btn').textContent = '⏹ Cancelar';
   document.getElementById('iv-progresso').style.display = 'block';
   ivProcessando = true;
 
@@ -3143,6 +3293,11 @@ async function ivIniciarGeracao() {
     status.textContent = '⚙ Gerando...';
     status.style.color = '#b45000';
     if (chk) chk.disabled = true;
+
+    if (ivCancelado) {
+      item.className = 'intervalo-item'; status.textContent = '⏹ Cancelado'; status.style.color = 'var(--text2)';
+      break;
+    }
 
     ivAtualizarProgresso(concluidos, totalSel, `Gerando lote ${s+1} de ${totalSel}: comandas ${iv.ini} a ${iv.fim}...`);
 
@@ -3193,8 +3348,9 @@ async function ivIniciarGeracao() {
     } catch(e) {
       ivIntervalos[iv.idx].status = 'erro';
       item.className = 'intervalo-item erro';
-      status.textContent = '❌ Erro';
-      status.style.color = 'var(--danger)';
+      const errMsg = e.message.length > 60 ? e.message.slice(0, 60) + '…' : e.message;
+      status.textContent = `❌ ${errMsg}`;
+      status.style.color = 'var(--danger)'; status.title = e.message;
       if (chk) chk.disabled = false;
       document.getElementById('iv-prog-label').textContent = `❌ Erro no lote ${iv.ini}–${iv.fim}: ${e.message}`;
       document.getElementById('iv-pausa-info').textContent = 'Corrija o erro e tente novamente os lotes com falha.';
@@ -3208,6 +3364,7 @@ async function ivIniciarGeracao() {
   }
 
   ivProcessando = false;
+  document.getElementById('iv-cancelar-btn').style.display = 'none';
 
   const falhas = ivIntervalos.filter(iv => iv.status === 'erro').length;
   if (concluidos === totalSel) {
@@ -3334,10 +3491,11 @@ function buildLayout() {
 // ── Utils ─────────────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-function toast(msg) {
+function toast(msg, duracao) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), duracao || 3500);
 }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>

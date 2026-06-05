@@ -31,6 +31,8 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+os.makedirs("fonts", exist_ok=True)
+app.mount("/fonts-preview", StaticFiles(directory="fonts"), name="fonts-preview")
 
 
 @app.get("/")
@@ -184,11 +186,16 @@ async def preview(
 # ram_pag   → RAM estimada por página 400x600 (MB)
 # lote_max  → máximo de páginas por lote nesse preset (target ~500MB RAM)
 QUALIDADE_PRESETS = {
-    "alta":   {"dpi": 300, "label": "Alta (300 DPI)",   "ram_pag": 6.7, "lote_max": 40},
-    "media":  {"dpi": 200, "label": "Média (200 DPI)",  "ram_pag": 3.0, "lote_max": 160},
-    "normal": {"dpi": 150, "label": "Normal (150 DPI)", "ram_pag": 1.7, "lote_max": 290},
-    "baixa":  {"dpi": 96,  "label": "Rápida (96 DPI)",  "ram_pag": 0.7, "lote_max": 700},
+    "alta":   {"dpi": 300, "label": "Alta (300 DPI) — impressão profissional",  "ram_pag": 6.7, "lote_max": 20},
+    "media":  {"dpi": 200, "label": "Média (200 DPI) — impressão padrão",       "ram_pag": 3.0, "lote_max": 20},
+    "normal": {"dpi": 150, "label": "Normal (150 DPI) — impressão doméstica",   "ram_pag": 1.7, "lote_max": 20},
+    "baixa":  {"dpi": 96,  "label": "Rápida (96 DPI) — tela / PDF digital",     "ram_pag": 0.7, "lote_max": 20},
 }
+
+@app.get("/ping")
+def ping():
+    return {"ok": True}
+
 
 @app.get("/qualidade-presets")
 def get_presets():
