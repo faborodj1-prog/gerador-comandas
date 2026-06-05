@@ -940,7 +940,16 @@
     </div>
 
     <div class="prop-lbl" style="margin-bottom:4px">Qualidade de impressão</div>
-    <div id="g-qualidade-btns" style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px"></div>
+    <div id="g-qualidade-btns" style="display:flex;flex-direction:column;gap:5px;margin-bottom:8px"></div>
+
+    <div class="prop-row" style="margin-bottom:10px;align-items:center">
+      <span class="prop-lbl">Comandas por lote</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="number" id="g-lote-max" min="1" max="500" value="40" class="inp-sm"
+          style="width:70px" oninput="atualizarInfoGerar()" title="Reduza se der erro de memória no servidor">
+        <span style="font-size:11px;color:var(--text2)">sugerido: <span id="g-sugerido">40</span></span>
+      </div>
+    </div>
 
     <div class="notice" id="g-info" style="margin-bottom:8px"></div>
 
@@ -2835,9 +2844,10 @@ function renderQualidadeBtns() {
   const presets = Object.keys(qualidadePresets).length > 0 ? qualidadePresets : presetFallback;
   if (Object.keys(qualidadePresets).length === 0) qualidadePresets = presetFallback;
   wrap.innerHTML = Object.entries(presets).map(([key, p]) => {
-    const lotes = total > p.lote_max ? Math.ceil(total / p.lote_max) : 1;
+    const mx = key === qualidadeSelecionada ? _getLoteMax() : p.lote_max;
+    const lotes = total > mx ? Math.ceil(total / mx) : 1;
     const loteTxt = lotes > 1 ? `<span style="color:var(--danger);font-size:10px"> → ${lotes} lotes</span>` : `<span style="color:var(--success,#2e7d32);font-size:10px"> → 1 lote ✓</span>`;
-    const ramTotal = (p.ram_pag * Math.min(total, p.lote_max)).toFixed(0);
+    const ramTotal = (p.ram_pag * Math.min(total, mx)).toFixed(0);
     const sel = key === qualidadeSelecionada;
     return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--surface)'};cursor:pointer;font-size:12px" onclick="selecionarQualidade('${key}')">
       <input type="radio" name="g-qual" value="${key}" ${sel?'checked':''} style="accent-color:var(--accent)">
@@ -2851,8 +2861,19 @@ function renderQualidadeBtns() {
 
 function selecionarQualidade(key) {
   qualidadeSelecionada = key;
+  const sugerido = (qualidadePresets[key] || {}).lote_max || 40;
+  const campo = document.getElementById('g-lote-max');
+  const badge = document.getElementById('g-sugerido');
+  if (campo) campo.value = sugerido;
+  if (badge) badge.textContent = sugerido;
   renderQualidadeBtns();
   atualizarInfoGerar();
+}
+
+function _getLoteMax() {
+  const custom = parseInt(document.getElementById('g-lote-max')?.value);
+  if (custom && custom > 0) return custom;
+  return (qualidadePresets[qualidadeSelecionada] || {}).lote_max || 40;
 }
 
 function atualizarInfoGerar() {
@@ -2861,11 +2882,12 @@ function atualizarInfoGerar() {
   const total = fim - ini + 1;
   const p = qualidadePresets[qualidadeSelecionada];
   if (!p) return;
-  const lotes = Math.ceil(total / p.lote_max);
+  const loteMax = _getLoteMax();
+  const lotes = Math.ceil(total / loteMax);
   const info = document.getElementById('g-info');
   if (!info) return;
   if (lotes > 1) {
-    info.textContent = `${total} comandas → serão gerados ${lotes} PDFs separados de até ${p.lote_max} páginas cada.`;
+    info.textContent = `${total} comandas → serão gerados ${lotes} PDFs separados de até ${loteMax} páginas cada.`;
     info.style.background = '#fff3e0'; info.style.borderColor = '#f0a040';
   } else {
     info.textContent = `${total} comandas em 1 PDF — pronto para gerar!`;
@@ -2942,6 +2964,12 @@ function openGerarModal() {
   }
 
   gSincronizar();
+  // Preenche campo "por lote" com o valor sugerido para a qualidade selecionada
+  const sugerido = (qualidadePresets[qualidadeSelecionada] || {}).lote_max || 40;
+  const campo = document.getElementById('g-lote-max');
+  const badge = document.getElementById('g-sugerido');
+  if (campo) campo.value = sugerido;
+  if (badge) badge.textContent = sugerido;
   document.getElementById('modal-gerar').style.display = 'flex';
 }
 
@@ -2955,10 +2983,7 @@ async function gerarPDF() {
   const total = fim - ini + 1;
   const formato = document.getElementById('g-formato').value;
   // Garante preset válido — usa fallback se carregarPresets não terminou
-  const presetFallback = { alta:{lote_max:70}, media:{lote_max:160}, normal:{lote_max:290}, baixa:{lote_max:700} };
-  const presets = Object.keys(qualidadePresets).length > 0 ? qualidadePresets : presetFallback;
-  const preset = presets[qualidadeSelecionada] || presets['alta'];
-  const limite = preset.lote_max;
+  const limite = _getLoteMax(); // usa valor customizado do campo "por lote"
 
   closeModal('modal-gerar');
 
