@@ -715,8 +715,7 @@ def renderizar_comanda(background, numero, cfg, escala: float = 1.0):
             cortev = el.get("bc_cortev", 27)
             cortee = el.get("bc_cortee", 8)
             corted = el.get("bc_corted", 8)
-            rot_barra = el.get("bc_rotbarra", rot)
-            bc = gerar_barcode(numero, prefixo, w, h, cortev, cortee, corted, rot_barra, cfg_sistema).convert("RGBA")
+            bc = gerar_barcode(numero, prefixo, w, h, cortev, cortee, corted, rot, cfg_sistema).convert("RGBA")
             bg.paste(bc, (x, y), bc)
 
         elif el_type in ("text", "number"):

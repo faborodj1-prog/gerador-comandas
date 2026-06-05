@@ -640,13 +640,6 @@
         <div class="prop-row"><span class="prop-lbl">Corte vertical %</span><input type="number" id="p-bc-cortev" class="inp-sm" value="27" min="0" max="99" onchange="applyProp('bc_cortev',this.value)"></div>
         <div class="prop-row"><span class="prop-lbl">Corte esq %</span><input type="number" id="p-bc-cortee" class="inp-sm" value="8" min="0" max="49" onchange="applyProp('bc_cortee',this.value)"></div>
         <div class="prop-row"><span class="prop-lbl">Corte dir %</span><input type="number" id="p-bc-corted" class="inp-sm" value="8" min="0" max="49" onchange="applyProp('bc_corted',this.value)"></div>
-        <div class="prop-row">
-          <span class="prop-lbl">Rot. barra</span>
-          <select id="p-bc-rotbarra" onchange="applyProp('bc_rotbarra',this.value)" style="width:auto">
-            <option value="0">0°</option><option value="90">90°</option>
-            <option value="180">180°</option><option value="270">270°</option>
-          </select>
-        </div>
         <div class="notice" style="margin-top:4px">Número gerado automaticamente via Code39.</div>
       </div>
       <div class="psec" id="logo-props" style="display:none">
@@ -702,13 +695,15 @@
       <div id="qi-doc-status" style="font-size:11px;min-height:16px"></div>
     </div>
 
-    <div class="prop-row" style="margin-bottom:6px">
-      <span class="prop-lbl">Nº inicial</span>
-      <input type="number" id="qi-ini" value="1" min="1" class="inp-sm" oninput="qiAtualizarInfo();_qiAtualizarDoc()">
-    </div>
-    <div class="prop-row" style="margin-bottom:10px">
-      <span class="prop-lbl">Nº final</span>
-      <input type="number" id="qi-fim" value="100" min="1" class="inp-sm" oninput="qiAtualizarInfo()">
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="prop-lbl" style="white-space:nowrap">Nº inicial</span>
+        <input type="number" id="qi-ini" value="1" min="1" class="inp-sm" oninput="qiAtualizarInfo();_qiAtualizarDoc()">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="prop-lbl" style="white-space:nowrap">Nº final</span>
+        <input type="number" id="qi-fim" value="100" min="1" class="inp-sm" oninput="qiAtualizarInfo()">
+      </div>
     </div>
 
     <div class="prop-lbl" style="margin-bottom:5px">Tamanho</div>
@@ -1570,7 +1565,6 @@ function showProps(id) {
     document.getElementById('p-bc-cortev').value = el.bc_cortev ?? 27;
     document.getElementById('p-bc-cortee').value = el.bc_cortee ?? 8;
     document.getElementById('p-bc-corted').value = el.bc_corted ?? 8;
-    document.getElementById('p-bc-rotbarra').value = el.bc_rotbarra ?? 0;
   }
 }
 
