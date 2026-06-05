@@ -692,8 +692,20 @@
   <div class="modal" style="max-width:420px">
     <h3>🖼 Gerar QR Codes em imagem</h3>
 
-    <!-- Resumo da barra de geração -->
-    <div id="qi-resumo-bar" class="notice" style="margin-bottom:12px;font-size:12px"></div>
+    <!-- Resumo do documento (da barra) -->
+    <div id="qi-resumo-bar" class="notice" style="margin-bottom:10px;font-size:12px"></div>
+
+    <!-- Intervalo diretamente no modal -->
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="prop-lbl" style="white-space:nowrap">Nº inicial</span>
+        <input type="number" id="qi-ini" value="1" min="1" class="inp-sm" oninput="qiSincronizarIntervalo()">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="prop-lbl" style="white-space:nowrap">Nº final</span>
+        <input type="number" id="qi-fim" value="10" min="1" class="inp-sm" oninput="qiSincronizarIntervalo()">
+      </div>
+    </div>
 
     <div class="prop-lbl" style="margin-bottom:5px">Tamanho</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px" id="qi-tamanho-btns"></div>
@@ -2097,11 +2109,16 @@ async function abrirModalQrImg() {
   document.getElementById('qi-btn').disabled          = false;
   document.getElementById('qi-btn').textContent       = '⬇ Gerar ZIP';
   document.getElementById('qi-btn-cancelar').disabled = false;
+  // Pré-preencher intervalo com valores da barra
+  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
+  const qiIniEl = document.getElementById('qi-ini');
+  const qiFimEl = document.getElementById('qi-fim');
+  if (qiIniEl) qiIniEl.value = ini;
+  if (qiFimEl) qiFimEl.value = fim;
+
   qiRenderTamanhos();
   qiAtualizarInfo();
-  // Resumo da barra
-  const ini   = parseInt(document.getElementById('lote-ini').value) || 1;
-  const fim   = parseInt(document.getElementById('lote-fim').value) || 10;
   const total = Math.max(0, fim - ini + 1);
   const tipo  = document.getElementById('tipo-doc').value;
   const doc   = document.getElementById('documento').value;
@@ -2161,9 +2178,19 @@ function _qiAtualizarDoc() {
 }
 
 
+function qiSincronizarIntervalo() {
+  // Propaga os campos do modal para a barra global
+  const ini = parseInt(document.getElementById('qi-ini')?.value) || 1;
+  const fim = parseInt(document.getElementById('qi-fim')?.value) || 1;
+  document.getElementById('lote-ini').value = ini;
+  document.getElementById('lote-fim').value = fim;
+  atualizarBarCount();
+  qiAtualizarInfo();
+}
+
 function qiAtualizarInfo() {
-  const ini     = parseInt(document.getElementById('lote-ini').value) || 1;
-  const fim     = parseInt(document.getElementById('lote-fim').value) || 1;
+  const ini     = parseInt(document.getElementById('qi-ini')?.value) || parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim     = parseInt(document.getElementById('qi-fim')?.value) || parseInt(document.getElementById('lote-fim').value) || 1;
   const total   = fim - ini + 1;
   const loteMax = (qiPresets[qiTamanhoSel] || {}).lote_max || 150;
   const info    = document.getElementById('qi-info');
@@ -2190,8 +2217,8 @@ async function gerarQrImagens() {
     return;
   }
 
-  const ini     = parseInt(document.getElementById('lote-ini').value) || 1;
-  const fim     = parseInt(document.getElementById('lote-fim').value) || 1;
+  const ini     = parseInt(document.getElementById('qi-ini')?.value || document.getElementById('lote-ini').value) || 1;
+  const fim     = parseInt(document.getElementById('qi-fim')?.value || document.getElementById('lote-fim').value) || 1;
   if (fim < ini) { alert('Nº final deve ser maior que o inicial.'); return; }
 
   const qual    = parseInt(document.querySelector('input[name="qi-qual"]:checked')?.value || 95);
