@@ -508,7 +508,10 @@
   <!-- Seção Barcode (prefixo) -->
   <div id="genbar-bc" style="display:none;display:flex;align-items:center;gap:6px">
     <span class="prop-lbl" style="white-space:nowrap">Prefixo</span>
-    <input type="text" id="bc-prefixo" value="/" placeholder="/" style="width:60px">
+    <input type="text" id="bc-prefixo" value="/" placeholder="/" style="width:60px" oninput="atualizarLeituraPrefixo()">
+    <span id="bc-leitura-info" style="font-size:10px;color:var(--text2);white-space:nowrap"></span>
+    <span style="cursor:help;font-size:13px"
+      title="Atenção: leitores de código de barras configurados em layout de teclado dos EUA (US) leem o caractere '/' como ';' quando o Windows está em Português (ABNT2). Isso acontece em qualquer gerador — é configuração do leitor, não do código. Configure o leitor para 'Brazil/ABNT2' para corrigir.">ℹ️</span>
   </div>
 
   <div class="genbar-sep"></div>
@@ -1192,6 +1195,7 @@ function startEditor(type) {
   // Mostrar painel de documento só para QR, prefixo só para barcode
   document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
   document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
+  if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
   elements = []; selectedId = null; idCounter = 0;
   document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
   document.getElementById('btn-snap').classList.toggle('active', snapEnabled);
@@ -1771,6 +1775,7 @@ function loadPattern(id) {
   const isQR = codeType === 'qr';
   document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
   document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
+  if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
   window.codeType = codeType;
   resizeCanvas(); selectedId=null; showProps(null); renderAll();
 }
@@ -3279,6 +3284,29 @@ function selecionarQualidade(key) {
   if (badge) badge.textContent = sugerido;
   renderQualidadeBtns();
   atualizarInfoGerar();
+}
+
+// Mapa de conversão layout US → ABNT2 (caracteres que mudam ao escanear)
+const _MAPA_US_ABNT2 = {
+  '/': ';', ';': 'ç', "'": '~', '[': '´', ']': '[', '\\': ']',
+  '=': '+', '?': ':',
+};
+
+function atualizarLeituraPrefixo() {
+  const pref = document.getElementById('bc-prefixo').value || '';
+  const info = document.getElementById('bc-leitura-info');
+  if (!info) return;
+  // Converte cada caractere conforme o mapa US→ABNT2
+  const lido = pref.split('').map(c => _MAPA_US_ABNT2[c] || c).join('');
+  if (pref && lido !== pref) {
+    info.textContent = `→ leitor (US) lê: "${lido}0001"`;
+    info.style.color = 'var(--danger)';
+  } else if (pref) {
+    info.textContent = `→ "${pref}0001"`;
+    info.style.color = 'var(--text2)';
+  } else {
+    info.textContent = '';
+  }
 }
 
 function atualizarBarCount() {
