@@ -16,7 +16,7 @@ import io
 import zipfile
 import os
 import json
-from barcode import Code39
+from barcode import Code39, Code128
 from barcode.writer import ImageWriter
 import uvicorn
 import gc
@@ -612,7 +612,12 @@ def gerar_barcode(numero, prefixo, largura, altura, corte_v, corte_e, corte_d, r
         "text_distance": 0,
         "write_text": False,
     })
-    obj = Code39(codigo, writer=writer, add_checksum=False)
+    # Code128 codifica EXATAMENTE o prefixo digitado (suporta todo o ASCII).
+    # Fallback para Code39 apenas se algo falhar.
+    try:
+        obj = Code128(codigo, writer=writer)
+    except Exception:
+        obj = Code39(codigo, writer=writer, add_checksum=False)
     buf = io.BytesIO()
     obj.write(buf)
     buf.seek(0)
