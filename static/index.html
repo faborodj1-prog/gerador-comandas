@@ -692,8 +692,18 @@
   <div class="modal" style="max-width:420px">
     <h3>🖼 Gerar QR Codes em imagem</h3>
 
-    <!-- Resumo do documento (da barra) -->
-    <div id="qi-resumo-bar" class="notice" style="margin-bottom:10px;font-size:12px"></div>
+    <!-- Documento editável -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:10px">
+      <div class="plabel" style="margin-bottom:6px">Dados do documento (QR Code)</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+        <select id="qi-tipo-doc" style="width:auto;font-size:12px" onchange="qiSincronizarDoc()">
+          <option value="CNPJ">CNPJ</option>
+          <option value="CPF">CPF</option>
+        </select>
+        <input type="text" id="qi-documento" placeholder="somente dígitos" style="flex:1;min-width:130px" oninput="qiSincronizarDoc()">
+      </div>
+      <div id="qi-doc-status" style="font-size:11px;min-height:14px"></div>
+    </div>
 
     <!-- Intervalo diretamente no modal -->
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
@@ -2109,6 +2119,13 @@ async function abrirModalQrImg() {
   document.getElementById('qi-btn').disabled          = false;
   document.getElementById('qi-btn').textContent       = '⬇ Gerar ZIP';
   document.getElementById('qi-btn-cancelar').disabled = false;
+  // Pré-preencher documento da barra
+  const tipoEl = document.getElementById('qi-tipo-doc');
+  const docEl  = document.getElementById('qi-documento');
+  if (tipoEl) tipoEl.value = document.getElementById('tipo-doc')?.value || 'CNPJ';
+  if (docEl)  docEl.value  = document.getElementById('documento')?.value || '';
+  qiSincronizarDoc();
+
   // Pré-preencher intervalo com valores da barra
   const ini = parseInt(document.getElementById('lote-ini').value) || 1;
   const fim = parseInt(document.getElementById('lote-fim').value) || 10;
@@ -2177,6 +2194,29 @@ function _qiAtualizarDoc() {
   qiSincronizarDoc();
 }
 
+
+function qiSincronizarDoc() {
+  const doc  = (document.getElementById('qi-documento')?.value || '').trim();
+  const tipo = document.getElementById('qi-tipo-doc')?.value || 'CNPJ';
+  // Espelha na barra global
+  const docEl  = document.getElementById('documento');
+  const tipoEl = document.getElementById('tipo-doc');
+  if (docEl)  docEl.value  = doc;
+  if (tipoEl) tipoEl.value = tipo;
+  verificarDocumento();
+  // Feedback no modal
+  const nums   = doc.replace(/\D/g, '');
+  const needed = tipo === 'CNPJ' ? 14 : 11;
+  const st     = document.getElementById('qi-doc-status');
+  if (!st) return;
+  if (nums.length === needed) {
+    st.textContent = `✅ ${tipo} válido`; st.style.color = 'var(--success,#2e7d32)';
+  } else if (nums.length > 0) {
+    st.textContent = `${nums.length} de ${needed} dígitos`; st.style.color = 'var(--danger)';
+  } else {
+    st.textContent = `Informe os ${needed} dígitos do ${tipo}`; st.style.color = 'var(--text2)';
+  }
+}
 
 function qiSincronizarIntervalo() {
   // Propaga os campos do modal para a barra global
