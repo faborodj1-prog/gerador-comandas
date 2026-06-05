@@ -1,0 +1,3320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Comandas</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f3;
+    --surface: #ffffff;
+    --surface2: #f0efed;
+    --border: #e0dedd;
+    --border2: #c8c7c5;
+    --text: #1a1a18;
+    --text2: #6b6b68;
+    --accent: #2a6ef5;
+    --accent-bg: #e8f0ff;
+    --danger: #e24b4a;
+    --success: #2e7d32;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* ── Topbar ── */
+  #topbar {
+    height: 48px; display: flex; align-items: center; gap: 8px;
+    padding: 0 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .logo { font-size: 14px; font-weight: 600; margin-right: 4px; }
+  .type-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: var(--radius);
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .tb-spacer { flex: 1; }
+  .tb-btn {
+    display: flex; align-items: center; gap: 5px; padding: 5px 12px;
+    border-radius: var(--radius); font-size: 12px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    transition: background .12s; white-space: nowrap;
+  }
+  .tb-btn:hover { background: var(--surface2); }
+  .tb-btn.primary { background: var(--text); color: var(--surface); border-color: transparent; }
+  .tb-btn.primary:hover { opacity: .85; }
+  .tb-btn.danger { border-color: var(--danger); color: var(--danger); }
+  .tb-btn.danger:hover { background: #fff0f0; }
+  .tb-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .zoom-row { display: flex; align-items: center; gap: 5px; }
+  .zoom-btn {
+    width: 26px; height: 26px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .zoom-btn:hover { background: var(--surface2); }
+  #zoom-label { font-size: 12px; color: var(--text2); min-width: 38px; text-align: center; }
+
+  /* ── Layout principal ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Painéis ── */
+  .panel {
+    width: 260px; flex-shrink: 0; overflow-y: auto;
+    background: var(--surface2); border-right: 1px solid var(--border);
+  }
+  #right-panel { border-right: none; border-left: 1px solid var(--border); }
+  .psec { padding: 12px; border-bottom: 1px solid var(--border); }
+  .plabel {
+    font-size: 10px; font-weight: 600; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--text2); margin-bottom: 8px;
+  }
+  .prop-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .prop-lbl { font-size: 12px; color: var(--text2); }
+  input[type=text], input[type=number], select, textarea {
+    font-size: 12px; padding: 5px 8px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    outline: none; width: 100%;
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--accent); }
+  .inp-sm { width: 64px !important; text-align: right; }
+  .inp-mb { margin-bottom: 6px; }
+  .tool-btn {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+    border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer;
+    margin-bottom: 5px; transition: background .12s;
+  }
+  .tool-btn:hover { background: var(--surface2); border-color: var(--border2); }
+  .tool-btn.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+  .tool-btn .ico { font-size: 16px; }
+  .notice {
+    font-size: 11px; color: var(--text2); line-height: 1.5;
+    padding: 8px; background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .pat-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 5px; background: var(--surface); cursor: pointer;
+  }
+  .pat-item:hover { border-color: var(--border2); }
+  .pat-name { font-size: 12px; font-weight: 500; }
+  .pat-meta { font-size: 10px; color: var(--text2); }
+  .icon-btn {
+    width: 26px; height: 26px; border-radius: var(--radius); border: none;
+    background: transparent; color: var(--text2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .icon-btn:hover { background: var(--surface2); color: var(--text); }
+  .icon-btn.danger:hover { color: var(--danger); }
+  .size-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .size-row > div { flex: 1; }
+  .size-row .prop-lbl { display: block; margin-bottom: 3px; }
+
+  /* ── Canvas ── */
+  #canvas-area {
+    flex: 1; background: #b0b0b0; overflow: auto;
+    display: flex; align-items: flex-start; justify-content: center; padding: 24px;
+  }
+  #canvas-wrap { position: relative; flex-shrink: 0; }
+  #canvas-bg { position: absolute; inset: 0; background: white; }
+  #canvas { position: relative; user-select: none; }
+
+  .el { position: absolute; cursor: move; box-sizing: border-box; }
+  .el.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .el .rh {
+    position: absolute; width: 9px; height: 9px;
+    background: white; border: 2px solid var(--accent); border-radius: 2px;
+    bottom: -5px; right: -5px; cursor: se-resize; z-index: 10;
+  }
+  .el .del {
+    position: absolute; top: -9px; right: -9px;
+    width: 17px; height: 17px; background: var(--danger); border-radius: 50%;
+    color: white; font-size: 11px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10; border: none; line-height: 1;
+  }
+  .el-qr, .el-bc { background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .el-text { display: flex; align-items: center; justify-content: center; overflow: hidden; word-break: break-word; }
+  .el-logo { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .el-logo img { width: 100%; height: 100%; object-fit: contain; }
+
+  /* ── Chooser ── */
+  #chooser {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: var(--bg); z-index: 100;
+  }
+  #chooser h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  #chooser p { color: var(--text2); font-size: 14px; margin-bottom: 36px; }
+  .ch-cards { display: flex; gap: 20px; }
+  .ch-card {
+    width: 210px; padding: 32px 20px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; text-align: center; display: flex; flex-direction: column;
+    align-items: center; gap: 14px; transition: border-color .15s, box-shadow .15s;
+  }
+  .ch-card:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+  .ch-icon { font-size: 44px; }
+  .ch-title { font-size: 15px; font-weight: 600; }
+  .ch-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+  /* ── Modals ── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center; z-index: 200;
+  }
+  .modal {
+    background: var(--surface); border-radius: var(--radius-lg);
+    border: 1px solid var(--border); padding: 24px;
+    min-width: 320px; max-width: 420px; width: 90%;
+  }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .modal-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  /* ── Spinner / Toast ── */
+  /* ── Intervalos ── */
+  .intervalo-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 12px; transition: background .2s, border-color .2s;
+    cursor: pointer;
+  }
+  .intervalo-item:hover { border-color: var(--border2); }
+  .intervalo-item.selecionado { border-color: var(--accent); background: var(--accent-bg); }
+  .intervalo-item.processando { border-color: #f0a030; background: #fff8e1; }
+  .intervalo-item.concluido  { border-color: var(--success); background: #f0fff4; }
+  .intervalo-item.erro       { border-color: var(--danger);  background: #fff0f0; }
+  .iv-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); flex-shrink:0; }
+  .iv-label { flex: 1; font-weight: 500; }
+  .iv-count { font-weight: 400; color: var(--text2); }
+  .iv-status { font-size: 11px; min-width: 100px; text-align: right; color: var(--text2); }
+  #iv-toolbar { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  #iv-toolbar .tb-btn { padding: 4px 10px; font-size:11px; }
+  #iv-pausa-info { font-size:11px; color:var(--text2); margin-top:6px; }
+
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: white; padding: 10px 20px;
+    border-radius: var(--radius); font-size: 13px; z-index: 300;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ── Preview overlay ── */
+  #preview-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.75);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 400; gap: 0;
+  }
+  #preview-topbar {
+    width: 100%; max-width: 900px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: rgba(255,255,255,.08);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border: 1px solid rgba(255,255,255,.15); border-bottom: none;
+  }
+  #preview-topbar .pv-title { color: white; font-size: 13px; font-weight: 500; }
+  #preview-topbar .pv-nav { display: flex; align-items: center; gap: 8px; }
+  .pv-nav-btn {
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+    color: white; width: 30px; height: 30px; border-radius: var(--radius);
+    font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .pv-nav-btn:hover { background: rgba(255,255,255,.3); }
+  .pv-nav-btn:disabled { opacity: .3; cursor: not-allowed; }
+  #pv-counter { color: rgba(255,255,255,.8); font-size: 12px; min-width: 80px; text-align: center; }
+  #preview-img-wrap {
+    background: white; border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    border: 1px solid rgba(255,255,255,.15); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    max-width: 90vw; max-height: 76vh;
+  }
+  #preview-img { max-width: 88vw; max-height: 74vh; display: block; }
+  #preview-spinner {
+    position: absolute; color: white; font-size: 13px;
+    background: rgba(0,0,0,.5); padding: 8px 16px; border-radius: var(--radius);
+  }
+  #preview-footer {
+    margin-top: 10px; display: flex; gap: 10px; align-items: center;
+  }
+  #preview-footer .close-btn {
+    background: white; border: none; padding: 7px 22px; border-radius: var(--radius);
+    font-size: 13px; cursor: pointer; font-weight: 500;
+  }
+  /* Modal preview config */
+  #modal-preview .num-input-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  #modal-preview .num-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--accent-bg); border: 1px solid var(--accent);
+    color: var(--accent); border-radius: var(--radius); padding: 2px 8px;
+    font-size: 12px; font-weight: 500;
+  }
+  #modal-preview .num-tag button {
+    background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px;
+  }
+  #preview-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; min-height: 28px; }
+
+  /* ── Image tools mini-menu ── */
+  .img-tools { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
+  .img-tool-btn {
+    font-size:11px; padding:3px 9px; border:1px solid var(--border);
+    border-radius:var(--radius); background:var(--surface); cursor:pointer;
+    color:var(--text2); display:flex; align-items:center; gap:3px;
+    white-space:nowrap; line-height:1.5;
+  }
+  .img-tool-btn:hover { background:var(--accent-bg); color:var(--accent); border-color:var(--accent); }
+  .fundo-wrap { position:relative; }
+  .fundo-menu {
+    position:absolute; top:calc(100% + 3px); left:0; z-index:300;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); min-width:170px;
+    box-shadow:0 4px 16px rgba(0,0,0,.14); overflow:hidden;
+  }
+  .fundo-opt { padding:8px 13px; font-size:12px; cursor:pointer; color:var(--text); }
+  .fundo-opt:hover { background:var(--accent-bg); color:var(--accent); }
+
+  /* ── Crop modal ── */
+  #crop-container { max-height:380px; overflow:hidden; background:#2a2a2a; border-radius:8px; }
+  #crop-img { display:block; max-width:100%; }
+  .crop-actions { display:flex; gap:6px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
+
+  /* ── Toolbar groups ── */
+  .tb-group {
+    display:flex; align-items:center; gap:2px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius); padding:2px;
+  }
+  .tb-group .tb-btn { border:none; background:transparent; }
+  .tb-group .tb-btn:hover { background:var(--bg); }
+  .tb-group .tb-btn.primary { background:var(--text); color:var(--surface); }
+  .tb-group .tb-btn.primary:hover { opacity:.85; background:var(--text); }
+  .tb-icon-btn {
+    width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center;
+    border-radius:var(--radius); border:1px solid var(--border); background:var(--surface);
+    cursor:pointer; font-size:15px; transition:background .12s;
+  }
+  .tb-icon-btn:hover { background:var(--surface2); }
+  .tb-icon-btn.active { background:var(--accent-bg); border-color:var(--accent); color:var(--accent); }
+  .unsaved-dot { width:7px; height:7px; border-radius:50%; background:#f59000; display:inline-block; margin-left:3px; vertical-align:middle; flex-shrink:0; }
+  .undo-badge { font-size:10px; color:var(--text2); margin-left:1px; }
+
+  /* ── Chooser workflow steps ── */
+  .ch-steps { display:flex; gap:0; margin-top:32px; }
+  .ch-step { display:flex; align-items:center; gap:0; }
+  .ch-step-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; font-size:11px; color:var(--text2); text-align:center; width:130px; }
+  .ch-step-box strong { display:block; font-size:12px; color:var(--text); margin-bottom:2px; }
+  .ch-step-arrow { color:var(--border2); font-size:18px; padding:0 6px; }
+
+  /* ── Element add buttons hierarchy ── */
+  .tool-btn.primary-action { border-color:var(--accent); background:var(--accent-bg); color:var(--accent); font-weight:600; }
+  .tool-btn.primary-action:hover { background:var(--accent); color:#fff; }
+
+  /* ── Tema escuro ── */
+  [data-theme="dark"] {
+    --bg: #1c1c1a; --surface: #252523; --surface2: #2e2e2c;
+    --border: #3c3c3a; --border2: #525250;
+    --text: #efefed; --text2: #9a9a98;
+    --accent: #5a8ef5; --accent-bg: #1a2a50;
+  }
+  [data-theme="dark"] .tb-btn.danger:hover { background:#3a1515; }
+  [data-theme="dark"] #canvas-area { background:#111110; }
+  [data-theme="dark"] .ch-card { background:var(--surface2); }
+  [data-theme="dark"] .fundo-menu { box-shadow:0 4px 16px rgba(0,0,0,.4); }
+
+  /* ── Seletor de cor rápido ── */
+  .cor-row { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
+  .cor-preset {
+    width:26px; height:26px; border-radius:6px; border:2px solid var(--border);
+    cursor:pointer; padding:0; flex-shrink:0;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .cor-preset:hover { border-color:var(--border2); transform:scale(1.08); }
+  .cor-preset.ativo  { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-bg); }
+  .cor-paleta {
+    cursor:pointer; font-size:20px; line-height:1; flex-shrink:0;
+    position:relative; display:inline-flex; align-items:center;
+    user-select:none;
+  }
+  .cor-paleta input[type=color] {
+    position:absolute; opacity:0; left:0; top:0; width:100%; height:100%;
+    cursor:pointer; padding:0; border:none;
+  }
+
+  /* ── Guias de alinhamento ── */
+  #guides-overlay { position:absolute; inset:0; pointer-events:none; z-index:55; overflow:hidden; }
+  .guide-h {
+    position:absolute; left:-4px; right:-4px; height:1px;
+    pointer-events:none;
+  }
+  .guide-v {
+    position:absolute; top:-4px; bottom:-4px; width:1px;
+    pointer-events:none;
+  }
+  .guide-label {
+    position:absolute; font-size:9px; font-weight:600; padding:1px 4px;
+    border-radius:3px; white-space:nowrap; line-height:1.4;
+    pointer-events:none;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+</head>
+<body>
+
+<!-- ── Chooser ── -->
+<div id="chooser">
+  <h1>🍽️ Gerador de Comandas</h1>
+  <p>Escolha o tipo de código e monte seu layout em 3 passos</p>
+  <div class="ch-cards">
+    <div class="ch-card" onclick="startEditor('qr')">
+      <div class="ch-icon">📱</div>
+      <div class="ch-title">QR Code</div>
+      <div class="ch-desc">Código 2D escaneável por qualquer câmera. Suporta URLs e dados do pedido.</div>
+    </div>
+    <div class="ch-card" onclick="startEditor('barcode')">
+      <div class="ch-icon">🔢</div>
+      <div class="ch-title">Código de Barras</div>
+      <div class="ch-desc">Código 1D lido por leitores de caixa. Ideal para PDV e sistemas legados.</div>
+    </div>
+  </div>
+  <div class="ch-steps">
+    <div class="ch-step">
+      <div class="ch-step-box"><strong>① Monte o layout</strong>Adicione QR, texto, logo e posicione no canvas</div>
+    </div>
+    <div class="ch-step-arrow">→</div>
+    <div class="ch-step">
+      <div class="ch-step-box"><strong>② Visualize</strong>Use o Preview para conferir cada comanda</div>
+    </div>
+    <div class="ch-step-arrow">→</div>
+    <div class="ch-step">
+      <div class="ch-step-box"><strong>③ Gere o PDF</strong>Defina o intervalo e baixe em lotes</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div id="topbar" style="display:none">
+  <!-- Identidade + navegação -->
+  <span class="logo">🍽️ Gerador de Comandas</span>
+  <span class="type-badge" id="type-badge">—</span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="confirmarTrocarTipo()" title="Mudar entre QR Code e Código de Barras">⇄ Mudar tipo</button>
+  <button class="tb-btn" onclick="confirmarNovo()" title="Limpar canvas (Novo projeto)">🗋 Novo</button>
+  <div class="tb-sep"></div>
+  <div class="zoom-row">
+    <button class="zoom-btn" onclick="changeZoom(-0.1)" title="Reduzir zoom (Ctrl+scroll)">−</button>
+    <span id="zoom-label">100%</span>
+    <button class="zoom-btn" onclick="changeZoom(0.1)" title="Aumentar zoom (Ctrl+scroll)">+</button>
+  </div>
+  <div class="tb-spacer"></div>
+
+  <!-- Projeto (abrir / salvar) -->
+  <div class="tb-group">
+    <input type="file" id="arte-input" accept=".comanda,.json" style="display:none" onchange="handleArteInput(event)">
+    <button class="tb-btn" onclick="carregarArte()" title="Abrir projeto salvo (.comanda)">📂 Abrir projeto</button>
+    <button class="tb-btn" id="btn-salvar-projeto" onclick="salvarArte()" title="Salvar projeto para edição futura">
+      💾 Salvar projeto <span id="unsaved-dot" class="unsaved-dot" style="display:none" title="Alterações não salvas"></span>
+    </button>
+  </div>
+  <div class="tb-sep"></div>
+
+  <!-- Preview + geração -->
+  <div class="tb-group">
+    <button class="tb-btn" onclick="openPreviewModal()" title="Visualizar comandas antes de gerar">👁 Preview</button>
+    <button class="tb-btn" id="btn-qr-img" onclick="abrirModalQrImg()" title="Exportar QR Codes como imagens JPG" style="display:none">🖼 QR</button>
+    <button class="tb-btn primary" onclick="openGerarModal()">⬇ Gerar PDF</button>
+  </div>
+  <div class="tb-sep"></div>
+
+  <!-- Utilitários (ícones compactos) -->
+  <button class="tb-icon-btn" onclick="savePattern()" title="Salvar como padrão reutilizável">🔖</button>
+  <button class="tb-icon-btn" onclick="abrirConfigs()" title="Ajustes do sistema (QR / Barcode)">⚙</button>
+  <button class="tb-icon-btn" id="btn-snap" onclick="toggleSnap()" title="Guias de alinhamento (ligar/desligar)">📐</button>
+  <button class="tb-icon-btn" onclick="undo()" id="btn-undo" title="Desfazer (Ctrl+Z)" style="gap:2px;width:auto;padding:0 8px;font-size:13px">↩<span id="undo-count" class="undo-badge"></span></button>
+  <div class="tb-sep"></div>
+  <button class="tb-icon-btn" id="btn-dark" onclick="toggleDark()" title="Tema escuro / claro" style="font-size:17px">🌙</button>
+</div>
+
+<div id="main" style="display:none">
+  <!-- Painel esquerdo -->
+  <div class="panel">
+    <div class="psec">
+      <div class="plabel">Canvas <span style="font-size:9px;font-weight:400;color:var(--text2);text-transform:none;letter-spacing:0">(tamanho em px = tamanho físico em mm × ~3.78)</span></div>
+      <div class="size-row">
+        <div><span class="prop-lbl">Largura (px)</span><input type="number" id="cv-w" value="400" onchange="resizeCanvas()" title="Exemplo: 200mm × 3.78 ≈ 756px"></div>
+        <div><span class="prop-lbl">Altura (px)</span><input type="number" id="cv-h" value="600" onchange="resizeCanvas()" title="Exemplo: 280mm × 3.78 ≈ 1058px"></div>
+      </div>
+      <div class="prop-lbl" style="margin-bottom:6px">Fundo do canvas</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button class="tool-btn active" id="bg-tab-cor" onclick="setBgTab('cor')" style="flex:1;margin:0;justify-content:center;font-size:11px">🎨 Cor sólida</button>
+        <button class="tool-btn" id="bg-tab-img" onclick="setBgTab('img')" style="flex:1;margin:0;justify-content:center;font-size:11px">🖼 Imagem</button>
+      </div>
+      <div id="bg-cor-panel">
+        <div class="prop-row">
+          <span class="prop-lbl">Cor de fundo</span>
+          <input type="color" id="bg-color" value="#ffffff" onchange="applyBgColor(this.value)" style="width:48px;height:28px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">
+        </div>
+        <div class="notice" style="margin-top:4px">A cor será usada no editor e no PDF gerado.</div>
+      </div>
+      <div id="bg-img-panel" style="display:none">
+        <input type="file" id="template-input" accept="image/*" style="font-size:11px;width:100%" onchange="loadTemplate(event)">
+        <div id="template-info" class="notice" style="margin-top:6px;display:none"></div>
+        <button class="tool-btn" style="margin-top:6px;color:var(--danger);display:none" id="btn-remover-img" onclick="removerTemplate()">✕ Remover imagem</button>
+        <div id="bg-img-tools" class="img-tools" style="display:none">
+          <button class="img-tool-btn" onclick="openCropModal('bg')">✂️ Recortar</button>
+          <div class="fundo-wrap">
+            <button class="img-tool-btn" onclick="toggleFundoMenu('bg')">🎨 Fundo ▾</button>
+            <div id="fundo-menu-bg" class="fundo-menu" style="display:none">
+              <div class="fundo-opt" onclick="abrirRemoverCor('bg')">🎯 Por cor (rápido)</div>
+              <div class="fundo-opt" onclick="removerFundoIA('bg')">🤖 Por IA (preciso)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="plabel">Adicionar elemento</div>
+      <button class="tool-btn primary-action" id="btn-add-code" onclick="addCode()">
+        <span class="ico" id="btn-code-ico">📱</span>
+        <span id="btn-code-lbl">QR Code</span>
+      </button>
+      <button class="tool-btn" onclick="addNumber()"><span class="ico">#</span> Número da comanda</button>
+      <button class="tool-btn" onclick="addText()"><span class="ico">🔤</span> Texto livre</button>
+      <button class="tool-btn" onclick="document.getElementById('logo-input').click()"><span class="ico">🖼</span> Logo / imagem</button>
+      <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="handleLogo(event)">
+    </div>
+
+    <div class="psec">
+      <div class="plabel" style="display:flex;justify-content:space-between;align-items:center">
+        Padrões salvos
+        <span id="patterns-mode-badge" style="font-size:9px;font-weight:500;background:var(--accent-bg);color:var(--accent);padding:1px 6px;border-radius:10px;text-transform:none;letter-spacing:0"></span>
+      </div>
+      <div id="patterns-list"></div>
+      <div class="notice" id="no-patterns">Nenhum padrão salvo. Monte seu layout e clique em 🔖.</div>
+    </div>
+
+    <div class="psec">
+      <div class="plabel">Fonte (para PDF)</div>
+      <select id="fonte-sel" class="inp-mb">
+        <option value="">-- Nenhuma (padrão) --</option>
+      </select>
+      <div class="notice" id="fonte-notice">Coloque arquivos .ttf na pasta <strong>fonts/</strong> e recarregue.</div>
+    </div>
+
+    <div class="psec" id="sec-documento" style="display:none">
+      <div class="plabel" style="display:flex;align-items:center;gap:6px">
+        Dados do documento
+        <span id="doc-status-badge" style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:10px;text-transform:none;letter-spacing:0;background:#ffeeba;color:#856404">⚠ obrigatório</span>
+      </div>
+      <div class="prop-lbl" style="margin-bottom:4px">Tipo</div>
+      <select id="tipo-doc" class="inp-mb" onchange="verificarDocumento()">
+        <option value="CNPJ">CNPJ</option>
+        <option value="CPF">CPF</option>
+      </select>
+      <div class="prop-lbl" style="margin-bottom:4px">Número (somente dígitos)</div>
+      <input type="text" id="documento" placeholder="Ex: 12345678000195" class="inp-mb" oninput="verificarDocumento()">
+      <div id="doc-feedback" style="font-size:11px;min-height:14px;margin-top:-2px;margin-bottom:4px"></div>
+      <div class="notice">Será codificado no QR como URL + número da comanda.</div>
+    </div>
+
+    <div class="psec" id="sec-prefixo" style="display:none">
+      <div class="plabel">Código de barras</div>
+      <div class="prop-lbl" style="margin-bottom:4px">Prefixo</div>
+      <input type="text" id="bc-prefixo" value="/" placeholder="Ex: /" class="inp-mb">
+      <div class="notice">O número da comanda será adicionado após o prefixo (ex: /0001).</div>
+    </div>
+
+    <div class="psec">
+      <div class="plabel">Geração em lote</div>
+      <div class="prop-row">
+        <span class="prop-lbl">Nº inicial</span>
+        <input type="number" id="lote-ini" value="1" min="1" class="inp-sm">
+      </div>
+      <div class="prop-row">
+        <span class="prop-lbl">Nº final</span>
+        <input type="number" id="lote-fim" value="10" min="1" class="inp-sm">
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-area">
+    <div id="canvas-wrap">
+      <div id="canvas-bg"></div>
+      <div id="canvas"></div>
+      <div id="guides-overlay"></div>
+    </div>
+  </div>
+
+  <!-- Painel direito -->
+  <div class="panel" id="right-panel">
+    <div class="psec" id="no-sel-msg">
+      <div class="notice">Clique em um elemento para editar suas propriedades.</div>
+    </div>
+    <div id="props-panel" style="display:none">
+      <div class="psec">
+        <div class="plabel">Posição e tamanho</div>
+        <div class="prop-row"><span class="prop-lbl">X</span><input type="number" id="p-x" class="inp-sm" onchange="applyProp('x',this.value)"></div>
+        <div class="prop-row"><span class="prop-lbl">Y</span><input type="number" id="p-y" class="inp-sm" onchange="applyProp('y',this.value)"></div>
+        <div class="prop-row"><span class="prop-lbl">Largura</span><input type="number" id="p-w" class="inp-sm" onchange="applyProp('w',this.value)"></div>
+        <div class="prop-row"><span class="prop-lbl">Altura</span><input type="number" id="p-h" class="inp-sm" onchange="applyProp('h',this.value)"></div>
+        <div style="margin-bottom:6px">
+          <div class="prop-lbl" style="margin-bottom:4px">Rotação</div>
+          <div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">
+            <button class="zoom-btn" onclick="setRot(0)"   title="0°"   style="width:auto;padding:0 7px;font-size:11px">0°</button>
+            <button class="zoom-btn" onclick="setRot(90)"  title="90°"  style="width:auto;padding:0 7px;font-size:11px">90°</button>
+            <button class="zoom-btn" onclick="setRot(180)" title="180°" style="width:auto;padding:0 7px;font-size:11px">180°</button>
+            <button class="zoom-btn" onclick="setRot(270)" title="270°" style="width:auto;padding:0 7px;font-size:11px">270°</button>
+            <input type="number" id="p-rot" class="inp-sm" value="0" onchange="applyProp('rot',this.value)" style="width:52px" title="Ângulo livre">
+          </div>
+        </div>
+      </div>
+      <div class="psec" id="text-props" style="display:none">
+        <div class="plabel">Texto</div>
+        <input type="text" id="p-text" placeholder="Conteúdo" class="inp-mb" oninput="applyProp('text',this.value)">
+        <div class="prop-row"><span class="prop-lbl">Tamanho px</span><input type="number" id="p-fs" value="18" class="inp-sm" onchange="applyProp('fs',this.value)"></div>
+        <div style="margin-bottom:6px">
+          <div class="prop-lbl" style="margin-bottom:4px">Cor</div>
+          <div class="cor-row">
+            <button class="cor-preset" id="cor-preto" onclick="setCor('#000000')" title="Preto"
+              style="background:#000000"></button>
+            <button class="cor-preset" id="cor-branco" onclick="setCor('#ffffff')" title="Branco"
+              style="background:#ffffff; border-color:#bbb; background-image:linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%),linear-gradient(45deg,#ddd 25%,#fff 25%,#fff 75%,#ddd 75%); background-size:8px 8px; background-position:0 0,4px 4px;"></button>
+            <label class="cor-paleta" title="Mais cores...">
+              🎨<input type="color" id="p-color" value="#000000" onchange="setCor(this.value)">
+            </label>
+            <span class="cor-hex" id="cor-hex" style="font-size:10px;color:var(--text2);font-family:monospace">#000000</span>
+          </div>
+        </div>
+        <div class="prop-row"><span class="prop-lbl">Negrito</span><input type="checkbox" id="p-bold" onchange="applyProp('bold',this.checked)"></div>
+        <div class="prop-row">
+          <span class="prop-lbl">Alinhamento</span>
+          <select id="p-align" style="width:auto" onchange="applyProp('align',this.value)">
+            <option value="center">Centro</option>
+            <option value="left">Esquerda</option>
+            <option value="right">Direita</option>
+          </select>
+        </div>
+      </div>
+      <div class="psec" id="qr-props" style="display:none">
+        <div class="plabel">QR Code</div>
+        <div class="prop-lbl" style="margin-bottom:4px">URL / dados base</div>
+        <input type="text" id="p-qrdata" placeholder="https://..." class="inp-mb" oninput="applyProp('qrdata',this.value)">
+        <div class="notice">O número da comanda é adicionado automaticamente na geração.</div>
+      </div>
+      <div class="psec" id="bc-props" style="display:none">
+        <div class="plabel">Código de barras</div>
+        <div class="prop-row"><span class="prop-lbl">Corte vertical %</span><input type="number" id="p-bc-cortev" class="inp-sm" value="27" min="0" max="99" onchange="applyProp('bc_cortev',this.value)"></div>
+        <div class="prop-row"><span class="prop-lbl">Corte esq %</span><input type="number" id="p-bc-cortee" class="inp-sm" value="8" min="0" max="49" onchange="applyProp('bc_cortee',this.value)"></div>
+        <div class="prop-row"><span class="prop-lbl">Corte dir %</span><input type="number" id="p-bc-corted" class="inp-sm" value="8" min="0" max="49" onchange="applyProp('bc_corted',this.value)"></div>
+        <div class="prop-row">
+          <span class="prop-lbl">Rot. barra</span>
+          <select id="p-bc-rotbarra" onchange="applyProp('bc_rotbarra',this.value)" style="width:auto">
+            <option value="0">0°</option><option value="90">90°</option>
+            <option value="180">180°</option><option value="270">270°</option>
+          </select>
+        </div>
+        <div class="notice" style="margin-top:4px">Número gerado automaticamente via Code39.</div>
+      </div>
+      <div class="psec" id="logo-props" style="display:none">
+        <div class="plabel">Edição Rápida</div>
+        <div class="img-tools">
+          <button class="img-tool-btn" onclick="openApagarModal()">🧹 Apagar área</button>
+          <button class="img-tool-btn" onclick="openRecorteModal()" title="Selecione a região que quer manter">✂️ Recorte</button>
+          <div class="fundo-wrap">
+            <button class="img-tool-btn" onclick="toggleFundoMenu('logo')">🎨 Fundo ▾</button>
+            <div id="fundo-menu-logo" class="fundo-menu" style="display:none">
+              <div class="fundo-opt" onclick="abrirRemoverCor('logo')">🎯 Por cor (rápido)</div>
+              <div class="fundo-opt" onclick="removerFundoIA('logo')">🤖 Por IA (preciso)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="psec">
+        <div class="plabel">Camadas</div>
+        <div style="display:flex;gap:6px">
+          <button class="tool-btn" style="flex:1;margin:0;justify-content:center" onclick="moveLayer(1)">↑ Frente</button>
+          <button class="tool-btn" style="flex:1;margin:0;justify-content:center" onclick="moveLayer(-1)">↓ Trás</button>
+        </div>
+      </div>
+      <div class="psec">
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <button class="tool-btn" style="flex:1;margin:0;justify-content:center" onclick="copyEl()" title="Copiar elemento (Ctrl+C)">📋 Copiar</button>
+          <button class="tool-btn" style="flex:1;margin:0;justify-content:center" onclick="duplicarEl()" title="Duplicar elemento">⧉ Duplicar</button>
+        </div>
+        <button class="tool-btn" style="color:var(--danger)" onclick="deleteSelected()">🗑 Excluir elemento</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gerar QR Imagens -->
+<div class="overlay" id="modal-qr-img" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <h3>🖼 Gerar QR Codes em imagem</h3>
+
+    <!-- Dados do documento — mesmo padrão do painel esquerdo -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:10px">
+      <div class="plabel" style="margin-bottom:6px">Dados do documento (QR Code)</div>
+      <div class="prop-row" style="margin-bottom:6px">
+        <span class="prop-lbl">Tipo</span>
+        <select id="qi-tipo-doc" style="width:auto" onchange="qiSincronizarDoc()">
+          <option value="CNPJ">CNPJ</option>
+          <option value="CPF">CPF</option>
+        </select>
+      </div>
+      <div class="prop-lbl" style="margin-bottom:4px">Número (somente dígitos)</div>
+      <input type="text" id="qi-documento" placeholder="Ex: 12345678000195" class="inp-mb"
+        oninput="qiSincronizarDoc()">
+      <div id="qi-doc-status" style="font-size:11px;min-height:16px"></div>
+    </div>
+
+    <div class="prop-row" style="margin-bottom:6px">
+      <span class="prop-lbl">Nº inicial</span>
+      <input type="number" id="qi-ini" value="1" min="1" class="inp-sm" oninput="qiAtualizarInfo();_qiAtualizarDoc()">
+    </div>
+    <div class="prop-row" style="margin-bottom:10px">
+      <span class="prop-lbl">Nº final</span>
+      <input type="number" id="qi-fim" value="100" min="1" class="inp-sm" oninput="qiAtualizarInfo()">
+    </div>
+
+    <div class="prop-lbl" style="margin-bottom:5px">Tamanho</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px" id="qi-tamanho-btns"></div>
+
+    <div class="prop-lbl" style="margin-bottom:5px">Qualidade JPG</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+        <input type="radio" name="qi-qual" value="85"> Normal (85%)
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+        <input type="radio" name="qi-qual" value="95" checked> Alta (95%)
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+        <input type="radio" name="qi-qual" value="100"> Máxima (100%)
+      </label>
+    </div>
+
+    <div class="notice" id="qi-info" style="margin-bottom:10px"></div>
+
+    <!-- Preview — mesmo sistema do editor -->
+    <button class="tb-btn" onclick="openQrImgPreviewModal()"
+      style="width:100%;justify-content:center;margin-bottom:8px">
+      👁 Preview QR Codes
+    </button>
+
+    <div class="notice" style="background:#fff8e1;border-color:#f0c040;color:#7a5c00;margin-bottom:4px">
+      ⚠️ Faça um preview antes de gerar os QR Codes em lote.
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px;font-size:12px;cursor:pointer">
+      <input type="checkbox" id="qi-aceite"> Já validei os QR Codes no preview.
+    </label>
+
+    <!-- Progresso -->
+    <div id="qi-progresso" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:8px">
+      <div style="font-size:12px;font-weight:500;margin-bottom:5px" id="qi-prog-label">Iniciando...</div>
+      <div style="background:var(--border);border-radius:4px;height:8px;margin-bottom:5px;overflow:hidden">
+        <div id="qi-prog-bar" style="background:var(--accent);height:8px;border-radius:4px;width:0%;transition:width .5s"></div>
+      </div>
+      <div id="qi-prog-detalhe" style="font-size:11px;color:var(--text2);min-height:16px"></div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="tb-btn" id="qi-btn-cancelar" onclick="closeModal('modal-qr-img')">Cancelar</button>
+      <button class="tb-btn primary" id="qi-btn" onclick="gerarQrImagens()">⬇ Gerar ZIP</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajustes do Sistema -->
+<div class="overlay" id="modal-config" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <h3>⚙ Ajustes do sistema</h3>
+
+    <!-- QR Code -->
+    <div id="cfg-qr-sec">
+      <div class="plabel" style="margin-bottom:8px">QR Code</div>
+      <div class="prop-row">
+        <span class="prop-lbl">Correção de erro</span>
+        <select id="cfg-qr-correcao" style="width:auto">
+          <option value="L">L — 7% (mais dados)</option>
+          <option value="M" selected>M — 15% (padrão)</option>
+          <option value="Q">Q — 25%</option>
+          <option value="H">H — 30% (mais robusto)</option>
+        </select>
+      </div>
+      <div style="margin-bottom:8px">
+        <div class="prop-lbl" style="margin-bottom:4px">Cor dos módulos</div>
+        <div class="cor-row">
+          <button class="cor-preset" id="cfg-qp" onclick="setCfgQrCor('#000000')" title="Preto" style="background:#000000"></button>
+          <button class="cor-preset" id="cfg-qb" onclick="setCfgQrCor('#ffffff')" title="Branco" style="background:#ffffff;border-color:#bbb"></button>
+          <label class="cor-paleta" title="Mais cores">🎨<input type="color" id="cfg-qr-cor" value="#000000" onchange="setCfgQrCor(this.value)"></label>
+          <span class="cor-hex" id="cfg-qr-hex">#000000</span>
+        </div>
+      </div>
+      <div class="prop-row">
+        <span class="prop-lbl">Fundo do QR</span>
+        <select id="cfg-qr-fundo" style="width:auto">
+          <option value="#ffffff">Branco</option>
+          <option value="transparent">Transparente</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Barcode -->
+    <div id="cfg-bc-sec" style="display:none">
+      <div class="plabel" style="margin-bottom:8px">Código de Barras</div>
+      <div style="margin-bottom:8px">
+        <div class="prop-lbl" style="margin-bottom:4px">Cor das barras</div>
+        <div class="cor-row">
+          <button class="cor-preset" id="cfg-bp" onclick="setCfgBcCor('#000000')" title="Preto" style="background:#000000"></button>
+          <button class="cor-preset" id="cfg-bb" onclick="setCfgBcCor('#ffffff')" title="Branco" style="background:#ffffff;border-color:#bbb"></button>
+          <label class="cor-paleta" title="Mais cores">🎨<input type="color" id="cfg-bc-cor" value="#000000" onchange="setCfgBcCor(this.value)"></label>
+          <span class="cor-hex" id="cfg-bc-hex">#000000</span>
+        </div>
+      </div>
+      <div class="prop-row">
+        <span class="prop-lbl">Fundo do barcode</span>
+        <select id="cfg-bc-fundo" style="width:auto">
+          <option value="#ffffff">Branco</option>
+          <option value="transparent">Transparente</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="closeModal('modal-config')">Cancelar</button>
+      <button class="tb-btn primary" onclick="aplicarConfigs()">✔ Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Apagar Área / Recorte -->
+<div class="overlay" id="modal-apagar-area" style="display:none">
+  <div class="modal" style="max-width:600px;width:95vw">
+    <h3 id="apagar-modal-titulo">🧹 Apagar área da imagem</h3>
+    <p id="apagar-modal-desc" style="font-size:12px;color:var(--text2);margin-bottom:10px">
+      Arraste para selecionar a área a apagar. A área ficará transparente.
+    </p>
+    <div style="position:relative;display:inline-block;border:1px solid var(--border);border-radius:6px;overflow:hidden;cursor:crosshair">
+      <canvas id="apagar-canvas"></canvas>
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:6px" id="apagar-hint">Clique e arraste sobre a imagem para selecionar.</div>
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="fecharApagarModal()">Cancelar</button>
+      <button class="tb-btn" onclick="apagarLimparSel()">↩ Limpar seleção</button>
+      <!-- Modo: apagar -->
+      <button class="tb-btn" id="apagar-btn-ok" onclick="aplicarApagarArea()" disabled>🧹 Apagar seleção</button>
+      <button class="tb-btn primary" id="apagar-btn-concluir" onclick="concluirApagarModal()">✔ Concluir</button>
+      <!-- Modo: recortar -->
+      <button class="tb-btn primary" id="apagar-btn-recortar" onclick="aplicarRecorteArea()" disabled style="display:none">✂️ Aplicar recorte</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Recortar Imagem -->
+<div class="overlay" id="modal-crop" style="display:none">
+  <div class="modal" style="max-width:600px;width:95vw">
+    <h3>✂️ Recortar imagem</h3>
+    <div id="crop-container"><img id="crop-img" style="display:block;max-width:100%"></div>
+    <div class="crop-actions">
+      <button class="tb-btn" onclick="if(cropperInstance)cropperInstance.rotate(-90)" title="Girar 90° esquerda">↺ -90°</button>
+      <button class="tb-btn" onclick="if(cropperInstance)cropperInstance.rotate(90)"  title="Girar 90° direita">↻ +90°</button>
+      <button class="tb-btn" onclick="if(cropperInstance)cropperInstance.scaleX(cropperInstance.getData().scaleX===-1?1:-1)" title="Espelhar">↔ Espelhar</button>
+      <button class="tb-btn" onclick="if(cropperInstance)cropperInstance.reset()">↩ Reset</button>
+    </div>
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="fecharCropModal()">Cancelar</button>
+      <button class="tb-btn primary" onclick="aplicarCrop()">✔ Aplicar recorte</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Remover Fundo por Cor -->
+<div class="overlay" id="modal-remover-cor" style="display:none">
+  <div class="modal" style="max-width:340px">
+    <h3>🎨 Remover fundo por cor</h3>
+    <div style="margin-bottom:12px">
+      <div class="prop-lbl" style="margin-bottom:6px">Cor a remover</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="color" id="rc-cor" value="#ffffff" style="width:46px;height:34px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;padding:2px">
+        <span style="font-size:12px;color:var(--text2)">Selecione a cor do fundo</span>
+      </div>
+    </div>
+    <div style="margin-bottom:18px">
+      <div class="prop-lbl" style="margin-bottom:4px">Tolerância: <b id="rc-tol-val">30</b></div>
+      <input type="range" id="rc-tolerancia" min="0" max="100" value="30" style="width:100%;accent-color:var(--accent)" oninput="document.getElementById('rc-tol-val').textContent=this.value">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:2px"><span>Exato</span><span>Amplo</span></div>
+    </div>
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="closeModal('modal-remover-cor')">Cancelar</button>
+      <button class="tb-btn primary" id="rc-btn" onclick="executarRemoverFundoCor()">
+        <span id="rc-spinner" style="display:none">⏳ </span>Remover fundo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar ação destrutiva -->
+<div class="overlay" id="modal-confirmar" style="display:none">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div style="font-size:36px;margin-bottom:10px" id="modal-confirmar-ico">⚠️</div>
+    <h3 id="modal-confirmar-titulo" style="margin-bottom:8px"></h3>
+    <p id="modal-confirmar-msg" style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.5"></p>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="tb-btn" style="min-width:90px" onclick="closeModal('modal-confirmar')">Cancelar</button>
+      <button class="tb-btn danger" style="min-width:90px" id="modal-confirmar-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Salvar Padrão -->
+<div class="overlay" id="modal-pattern" style="display:none">
+  <div class="modal">
+    <h3>Salvar padrão</h3>
+    <input type="text" id="modal-pattern-name" placeholder="Ex: Comanda Restaurante X">
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="closeModal('modal-pattern')">Cancelar</button>
+      <button class="tb-btn primary" onclick="confirmSavePattern()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gerar PDF -->
+<div class="overlay" id="modal-gerar" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <h3>⬇ Gerar PDF em lote</h3>
+
+    <!-- Confirmação de dados — QR Code -->
+    <div id="g-sec-qr" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:12px">
+      <div class="plabel" style="margin-bottom:8px">📄 Dados do QR Code</div>
+      <div style="display:flex;gap:5px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+        <select id="g-tipo-doc" style="width:auto;flex-shrink:0" onchange="gSincronizar()">
+          <option value="CNPJ">CNPJ</option>
+          <option value="CPF">CPF</option>
+        </select>
+        <input type="text" id="g-documento" style="flex:1;min-width:130px" placeholder="somente dígitos" oninput="gSincronizar()">
+      </div>
+      <div id="g-doc-status" style="font-size:11px;min-height:14px;margin-bottom:8px"></div>
+      <div class="prop-lbl" style="margin-bottom:5px">Intervalo de comandas</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text2)">De</span>
+        <input type="number" id="g-ini" min="1" value="1" class="inp-sm" oninput="gSincronizar()">
+        <span style="font-size:12px;color:var(--text2)">até</span>
+        <input type="number" id="g-fim" min="1" value="10" class="inp-sm" oninput="gSincronizar()">
+        <span id="g-resumo" style="font-size:11px;color:var(--text2);margin-left:4px"></span>
+      </div>
+    </div>
+
+    <!-- Confirmação de dados — Código de Barras -->
+    <div id="g-sec-bc" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:12px">
+      <div class="plabel" style="margin-bottom:8px">🔢 Dados do Código de Barras</div>
+      <div class="prop-row" style="margin-bottom:8px">
+        <span class="prop-lbl">Prefixo</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" id="g-prefixo" style="width:70px" placeholder="/" oninput="gSincronizar()">
+          <span id="g-bc-exemplo" style="font-size:11px;color:var(--text2)"></span>
+        </div>
+      </div>
+      <div class="prop-lbl" style="margin-bottom:5px">Intervalo de comandas</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text2)">De</span>
+        <input type="number" id="g-ini-bc" min="1" value="1" class="inp-sm" oninput="gSincronizar()">
+        <span style="font-size:12px;color:var(--text2)">até</span>
+        <input type="number" id="g-fim-bc" min="1" value="10" class="inp-sm" oninput="gSincronizar()">
+        <span id="g-resumo-bc" style="font-size:11px;color:var(--text2);margin-left:4px"></span>
+      </div>
+    </div>
+
+    <div class="prop-row" style="margin-bottom:8px">
+      <span class="prop-lbl">Formato</span>
+      <select id="g-formato" style="width:auto">
+        <option value="pdf">PDF</option>
+        <option value="zip">ZIP (com PDF dentro)</option>
+      </select>
+    </div>
+
+    <div class="prop-lbl" style="margin-bottom:4px">Qualidade de impressão</div>
+    <div id="g-qualidade-btns" style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px"></div>
+
+    <div class="notice" id="g-info" style="margin-bottom:8px"></div>
+
+    <div class="notice" style="background:#fff8e1;border-color:#f0c040;color:#7a5c00">
+      ⚠️ Faça um preview antes de gerar em lote.
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;cursor:pointer">
+      <input type="checkbox" id="g-aceite"> Já validei o layout no preview.
+    </label>
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="closeModal('modal-gerar')">Cancelar</button>
+      <button class="tb-btn primary" onclick="gerarPDF()">Gerar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal configurar preview -->
+<div class="overlay" id="modal-preview" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <h3 id="pv-modal-titulo">👁 Preview de Comandas</h3>
+
+    <!-- Intervalo (ação principal) -->
+    <div class="plabel" style="margin-bottom:6px">Intervalo de comandas</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text2)">De</span>
+      <input type="number" id="pv-range-ini" min="1" value="1" style="width:70px">
+      <span style="font-size:12px;color:var(--text2)">até</span>
+      <input type="number" id="pv-range-fim" min="1" value="5" style="width:70px">
+      <button class="tb-btn" onclick="pvConfirmRange()">+ Adicionar</button>
+    </div>
+
+    <!-- Número específico -->
+    <div class="plabel" style="margin-bottom:6px">Ou adicionar número específico</div>
+    <div class="num-input-row" style="margin-bottom:10px">
+      <input type="number" id="pv-num-input" min="1" placeholder="Ex: 42" style="width:90px;flex-shrink:0">
+      <button class="tb-btn" onclick="pvAddNum()">+ Adicionar</button>
+    </div>
+
+    <!-- Selecionados -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <span class="plabel" style="margin:0">Selecionadas</span>
+      <span id="pv-count-badge" style="font-size:11px;color:var(--text2)">0 comandas</span>
+    </div>
+    <div id="preview-tags" style="min-height:32px;margin-bottom:4px"></div>
+    <div id="pv-range-row" style="display:none"></div><!-- mantido por compatibilidade -->
+
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="closeModal('modal-preview')">Cancelar</button>
+      <button class="tb-btn" onclick="pvClear()" style="color:var(--danger)">🗑 Limpar</button>
+      <button class="tb-btn primary" id="pv-start-btn" onclick="pvStart()" disabled>👁 Visualizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview overlay -->
+<div id="preview-overlay" style="display:none">
+  <div id="preview-topbar">
+    <span class="pv-title" id="pv-title">Preview — Comanda #1</span>
+    <div class="pv-nav">
+      <button class="pv-nav-btn" id="pv-prev" onclick="pvNav(-1)">‹</button>
+      <span id="pv-counter">1 / 1</span>
+      <button class="pv-nav-btn" id="pv-next" onclick="pvNav(1)">›</button>
+    </div>
+  </div>
+  <div id="preview-img-wrap">
+    <img id="preview-img" src="" alt="Preview comanda">
+    <div id="preview-spinner" style="display:none">Carregando...</div>
+  </div>
+  <div id="preview-footer">
+    <button class="close-btn" onclick="closePvOverlay()">✕ Fechar</button>
+  </div>
+</div>
+
+<!-- Modal intervalos -->
+<div class="overlay" id="modal-intervalos" style="display:none">
+  <div class="modal" style="max-width:500px;max-height:80vh;overflow-y:auto">
+    <h3>📦 Gerar em lotes</h3>
+    <div id="modal-intervalos-body"></div>
+    <div class="modal-btns">
+      <button class="tb-btn" onclick="closeModal('modal-intervalos')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Estado ────────────────────────────────────────────────────────
+let elements = [], selectedId = null, zoom = 1, idCounter = 0;
+let dragging = null, resizing = null, dragOff = {x:0,y:0};
+let codeType = null;
+let templateFile = null;
+let templateDataURL = null;
+let patterns = JSON.parse(localStorage.getItem('cmdpatterns_v3') || '[]');
+let fontesDisp = {};
+
+const canvas = document.getElementById('canvas');
+const canvasWrap = document.getElementById('canvas-wrap');
+
+// ── Histórico (Ctrl+Z) ───────────────────────────────────────────
+const MAX_HISTORY = 50;
+let _undoStack = [];
+let _propHistoryTimer = null;
+
+function saveHistory() {
+  _undoStack.push(JSON.parse(JSON.stringify(elements)));
+  if (_undoStack.length > MAX_HISTORY) _undoStack.shift();
+}
+
+function saveHistoryDebounced() {
+  if (_propHistoryTimer) return;
+  saveHistory();
+  _propHistoryTimer = setTimeout(() => { _propHistoryTimer = null; }, 700);
+}
+
+function undo() {
+  if (_undoStack.length === 0) return;
+  elements = JSON.parse(JSON.stringify(_undoStack.pop()));
+  idCounter = elements.reduce((m, e) => Math.max(m, e.id), 0);
+  selectedId = null; _marcarModificado(); _atualizarBtnUndo();
+  showProps(null); renderAll();
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+function uid() { return ++idCounter; }
+function getEl(id) { return elements.find(e => e.id === id); }
+
+function startEditor(type) {
+  codeType = type;
+  document.getElementById('chooser').style.display = 'none';
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('main').style.display = 'flex';
+  const isQR = type === 'qr';
+  window.codeType = type; // expõe globalmente para mkDiv usar
+  document.getElementById('type-badge').textContent = isQR ? 'QR Code' : 'Código de Barras';
+  document.getElementById('btn-code-ico').textContent = isQR ? '📱' : '🔢';
+  document.getElementById('btn-code-lbl').textContent = isQR ? 'QR Code' : 'Código de Barras';
+  // Mostrar painel de documento só para QR, prefixo só para barcode
+  document.getElementById('sec-documento').style.display = isQR ? 'block' : 'none';
+  document.getElementById('sec-prefixo').style.display = isQR ? 'none' : 'block';
+  elements = []; selectedId = null; idCounter = 0;
+  document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
+  document.getElementById('btn-snap').classList.toggle('active', snapEnabled);
+  _marcarSalvo(); _atualizarBtnUndo();
+  resizeCanvas(); renderAll(); renderPatterns(); carregarFontes(); carregarPresets(); _initDarkBtn();
+  verificarDocumento(); _atualizarBadgePadroes();
+}
+
+function voltarEscolha(forcar) {
+  if (!forcar && elements.length > 0 && !confirm('Voltar? O canvas atual será perdido.')) return;
+  elements = []; selectedId = null; codeType = null;
+  _marcarSalvo();
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('chooser').style.display = 'flex';
+  showProps(null);
+}
+
+// ── Fontes ────────────────────────────────────────────────────────
+async function carregarFontes() {
+  try {
+    const r = await fetch('/fontes');
+    const d = await r.json();
+    fontesDisp = d.fontes || {};
+    const sel = document.getElementById('fonte-sel');
+    sel.innerHTML = '<option value="">-- Nenhuma (padrão) --</option>';
+
+    function addGroup(dict, label) {
+      const names = Object.keys(dict).sort();
+      if (!names.length) return;
+      const grp = document.createElement('optgroup');
+      grp.label = label;
+      names.forEach(nome => {
+        const opt = document.createElement('option');
+        opt.value = dict[nome]; opt.textContent = nome;
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    }
+
+    addGroup(d.sistema || {}, '── Fontes do sistema ──');
+    addGroup(d.usuario || {}, '── Suas fontes (fonts/) ──');
+
+    const total = Object.keys(fontesDisp).length;
+    const sis   = Object.keys(d.sistema || {}).length;
+    const usr   = Object.keys(d.usuario || {}).length;
+    document.getElementById('fonte-notice').textContent =
+      total > 0
+        ? `${total} fonte(s) disponível(eis)${usr > 0 ? ` · ${usr} sua(s)` : ''}`
+        : 'Coloque arquivos .ttf na pasta fonts/ para fontes personalizadas.';
+  } catch(e) {}
+}
+
+// ── Template ─────────────────────────────────────────────────────
+// ── Fundo: cor ou imagem ─────────────────────────────────────────
+let bgMode = 'cor'; // 'cor' | 'img'
+let bgColor = '#ffffff';
+
+function setBgTab(mode) {
+  bgMode = mode;
+  document.getElementById('bg-cor-panel').style.display = mode === 'cor' ? 'block' : 'none';
+  document.getElementById('bg-img-panel').style.display = mode === 'img' ? 'block' : 'none';
+  document.getElementById('bg-tab-cor').classList.toggle('active', mode === 'cor');
+  document.getElementById('bg-tab-img').classList.toggle('active', mode === 'img');
+  if (mode === 'cor') {
+    // Limpa imagem e aplica cor
+    templateFile = null; templateDataURL = null;
+    applyBgColor(document.getElementById('bg-color').value);
+    document.getElementById('template-info').style.display = 'none';
+    document.getElementById('btn-remover-img').style.display = 'none';
+    document.getElementById('bg-img-tools').style.display = 'none';
+  }
+}
+
+function applyBgColor(color) {
+  bgColor = color;
+  const bg = document.getElementById('canvas-bg');
+  bg.style.backgroundImage = 'none';
+  bg.style.backgroundColor = color;
+}
+
+function removerTemplate() {
+  templateFile = null; templateDataURL = null;
+  document.getElementById('template-input').value = '';
+  document.getElementById('template-info').style.display = 'none';
+  document.getElementById('btn-remover-img').style.display = 'none';
+  document.getElementById('bg-img-tools').style.display = 'none';
+  applyBgColor(bgColor);
+}
+
+function loadTemplate(ev) {
+  const file = ev.target.files[0]; if (!file) return;
+  templateFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    templateDataURL = e.target.result;
+    const bg = document.getElementById('canvas-bg');
+    bg.style.backgroundImage = `url(${templateDataURL})`;
+    bg.style.backgroundSize = '100% 100%';
+    bg.style.backgroundColor = '';
+    const img = new Image();
+    img.onload = () => {
+      document.getElementById('template-info').style.display = 'block';
+      document.getElementById('template-info').textContent = `Imagem: ${img.width}×${img.height}px`;
+      document.getElementById('btn-remover-img').style.display = 'flex';
+      document.getElementById('bg-img-tools').style.display = 'flex';
+    };
+    img.src = templateDataURL;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Canvas ────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const w = parseInt(document.getElementById('cv-w').value) || 400;
+  const h = parseInt(document.getElementById('cv-h').value) || 600;
+  canvas.style.width = (w * zoom) + 'px';
+  canvas.style.height = (h * zoom) + 'px';
+  canvasWrap.style.width = (w * zoom) + 'px';
+  canvasWrap.style.height = (h * zoom) + 'px';
+}
+
+function changeZoom(delta) {
+  zoom = Math.max(0.2, Math.min(3, parseFloat((zoom + delta).toFixed(1))));
+  document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
+  resizeCanvas(); renderAll();
+}
+
+function newCanvas() { confirmarNovo(); }
+
+// ── Render ────────────────────────────────────────────────────────
+// Renderiza apenas posição/tamanho/seleção sem recriar o DOM (usado durante drag)
+function updateDivGeometry(div, el) {
+  div.style.left   = el.x * zoom + 'px';
+  div.style.top    = el.y * zoom + 'px';
+  div.style.width  = el.w * zoom + 'px';
+  div.style.height = el.h * zoom + 'px';
+  div.style.transform = `rotate(${el.rot||0}deg)`;
+  div.style.zIndex = el.z || 0;
+}
+
+function mkDiv(el) {
+  const div = document.createElement('div');
+  div.className = 'el';
+  div.dataset.id = el.id;
+  updateDivGeometry(div, el);
+
+  if (el.type === 'text' || el.type === 'number') {
+    div.className += ' el-text';
+    div.style.fontSize = (el.fs || 18) * zoom + 'px';
+    div.style.color = el.color || '#000';
+    div.style.fontWeight = el.bold ? '700' : '400';
+    div.style.textAlign = el.align || 'center';
+    div.style.justifyContent = el.align === 'left' ? 'flex-start' : el.align === 'right' ? 'flex-end' : 'center';
+    const numVal = el.numPreview || 1;
+    const numStr = (el.type === 'number' && window.codeType === 'barcode')
+      ? String(numVal).padStart(4, '0')
+      : String(numVal);
+    div.textContent = el.type === 'number' ? numStr : (el.text || 'Texto');
+  } else if (el.type === 'qr') {
+    div.className += ' el-qr';
+    // pointer-events:none no SVG para não capturar eventos de mouse
+    const svg = mkQRSVG(el.qrdata || 'https://exemplo.com', el.w * zoom, el.h * zoom);
+    div.innerHTML = svg;
+    div.querySelectorAll('svg,rect,path').forEach(n => n.style.pointerEvents = 'none');
+  } else if (el.type === 'barcode') {
+    div.className += ' el-bc';
+    div.innerHTML = mkBarSVG(el.numPreview || 1, el.w * zoom, el.h * zoom);
+    div.querySelectorAll('svg,rect,path,text').forEach(n => n.style.pointerEvents = 'none');
+  } else if (el.type === 'logo' && el.src) {
+    div.className += ' el-logo';
+    const img = document.createElement('img');
+    img.src = el.src;
+    img.style.pointerEvents = 'none';
+    div.appendChild(img);
+  }
+
+  div.addEventListener('mousedown', onMouseDown);
+  return div;
+}
+
+// Aplica classe sel e handles sem recriar o elemento
+function applySelection(id) {
+  canvas.querySelectorAll('.el').forEach(div => {
+    const elId = parseInt(div.dataset.id);
+    div.classList.toggle('sel', elId === id);
+    // Remover handles antigos
+    div.querySelector('.rh')?.remove();
+    div.querySelector('.del')?.remove();
+    if (elId === id) {
+      const rh = document.createElement('div');
+      rh.className = 'rh'; rh.dataset.id = elId; div.appendChild(rh);
+      const db = document.createElement('button');
+      db.className = 'del'; db.textContent = '×';
+      db.addEventListener('mousedown', e => e.stopPropagation());
+      db.onclick = e => { e.stopPropagation(); deleteEl(elId); };
+      div.appendChild(db);
+    }
+  });
+}
+
+function renderAll() {
+  canvas.innerHTML = '';
+  [...elements].sort((a,b) => (a.z||0) - (b.z||0)).forEach(el => canvas.appendChild(mkDiv(el)));
+  applySelection(selectedId);
+}
+
+function reRender(id) {
+  const el = getEl(id); if (!el) return;
+  const old = canvas.querySelector(`[data-id="${id}"]`);
+  if (!old) { renderAll(); return; }
+  const novo = mkDiv(el);
+  canvas.replaceChild(novo, old);
+  applySelection(selectedId);
+}
+
+function mkQRSVG(data, w, h) {
+  const s = Math.min(w, h), cell = s / 21;
+  const seed = data.split('').reduce((a,c) => a + c.charCodeAt(0), 0);
+  let r = '';
+  for (let row = 0; row < 21; row++) for (let col = 0; col < 21; col++) {
+    const finder = (row<7&&col<7)||(row<7&&col>13)||(row>13&&col<7);
+    const inner = (row>=2&&row<=4&&col>=2&&col<=4)||(row>=2&&row<=4&&col>=16&&col<=18)||(row>=16&&row<=18&&col>=2&&col<=4);
+    const timing = (row===6&&col%2===0)||(col===6&&row%2===0);
+    const dt = ((seed*row*17+col*31+row*col*7)%3===0);
+    const on = finder ? (inner || ((row===0||row===6||col===0||col===6) && (row<=6&&col<=6||row<=6&&col>=14||row>=14&&col<=6))) : timing||dt;
+    if (on) r += `<rect x="${col*cell}" y="${row*cell}" width="${cell}" height="${cell}" fill="black"/>`;
+  }
+  return `<svg width="${s}" height="${s}" xmlns="http://www.w3.org/2000/svg"><rect width="${s}" height="${s}" fill="white"/>${r}</svg>`;
+}
+
+function mkBarSVG(num, w, h) {
+  const code = String(num).padStart(4, '0');
+  const bw = w / 60;
+  const pat = [1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,0,1,0,1,0];
+  let bars = '';
+  pat.forEach((on, i) => { if (on) bars += `<rect x="${i*bw}" y="0" width="${bw}" height="${h*0.8}" fill="black"/>`; });
+  return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="${w}" height="${h}" fill="white"/>${bars}<text x="${w/2}" y="${h*0.95}" text-anchor="middle" font-size="${h*0.12}" font-family="monospace">${code}</text></svg>`;
+}
+
+// ── Drag & Resize ─────────────────────────────────────────────────
+function onMouseDown(e) {
+  if (e.target.classList.contains('rh')) {
+    saveHistory();
+    resizing = parseInt(e.target.dataset.id || e.target.closest('.el').dataset.id);
+    e.preventDefault(); return;
+  }
+  if (e.target.classList.contains('del')) return;
+  const div = e.target.closest('.el'); if (!div) return;
+  const id = parseInt(div.dataset.id);
+
+  selectedId = id;
+  applySelection(id);
+  showProps(id);
+
+  saveHistory();
+  dragging = id;
+  const rect = div.getBoundingClientRect();
+  dragOff = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  e.preventDefault();
+}
+
+// ── Guias de alinhamento (snap guides) ───────────────────────────
+const SNAP_THR = 5; // tolerância em px do canvas (antes do zoom)
+
+function _cvSize() {
+  return {
+    w: parseInt(document.getElementById('cv-w').value) || 400,
+    h: parseInt(document.getElementById('cv-h').value) || 600
+  };
+}
+
+function _renderGuides(guides) {
+  const ov = document.getElementById('guides-overlay');
+  ov.innerHTML = '';
+  guides.forEach(g => {
+    const line = document.createElement('div');
+    if (g.type === 'h') {
+      line.className = 'guide-h';
+      line.style.cssText = `top:${g.pos * zoom}px;background:${g.color};box-shadow:0 0 0 0.5px ${g.color}44;`;
+      if (g.label) {
+        const lbl = document.createElement('span');
+        lbl.className = 'guide-label';
+        lbl.textContent = g.label;
+        lbl.style.cssText = `top:-9px;left:6px;background:${g.color};color:#fff;`;
+        line.appendChild(lbl);
+      }
+    } else {
+      line.className = 'guide-v';
+      line.style.cssText = `left:${g.pos * zoom}px;background:${g.color};box-shadow:0 0 0 0.5px ${g.color}44;`;
+      if (g.label) {
+        const lbl = document.createElement('span');
+        lbl.className = 'guide-label';
+        lbl.textContent = g.label;
+        lbl.style.cssText = `left:4px;top:6px;background:${g.color};color:#fff;`;
+        line.appendChild(lbl);
+      }
+    }
+    ov.appendChild(line);
+  });
+}
+
+function hideAllGuides() {
+  const ov = document.getElementById('guides-overlay');
+  if (ov) ov.innerHTML = '';
+}
+
+function checkAndSnap(el) {
+  if (!snapEnabled) { hideAllGuides(); return; }
+  const { w: cw, h: ch } = _cvSize();
+  const thr = SNAP_THR;
+  const guides = [];
+
+  const elCX = el.x + el.w / 2, elCY = el.y + el.h / 2;
+  const elR  = el.x + el.w,     elB  = el.y + el.h;
+  const ccx = cw / 2, ccy = ch / 2;
+
+  // ── Eixo X (guias verticais) ──────────────────────────────────
+  // Centro do canvas
+  const xSnapCenter = [
+    { test: elCX, ref: ccx, snap: () => { el.x = Math.round(ccx - el.w / 2); }, label: '↔ centro', color: '#2a6ef5' },
+    { test: el.x, ref: ccx, snap: () => { el.x = Math.round(ccx); },           label: '↔ centro', color: '#2a6ef5' },
+    { test: elR,  ref: ccx, snap: () => { el.x = Math.round(ccx - el.w); },    label: '↔ centro', color: '#2a6ef5' },
+  ];
+  // Bordas do canvas
+  const xSnapEdge = [
+    { test: el.x, ref: 0,  snap: () => { el.x = 0; },       label: 'esq', color: '#e24b4a' },
+    { test: elR,  ref: cw, snap: () => { el.x = cw - el.w; }, label: 'dir', color: '#e24b4a' },
+  ];
+  // Outros elementos
+  const xSnapEl = [];
+  elements.forEach(o => {
+    if (o.id === el.id) return;
+    const oCX = o.x + o.w / 2, oR = o.x + o.w;
+    xSnapEl.push({ test: elCX, ref: oCX, snap: () => { el.x = Math.round(oCX - el.w / 2); }, label: '↔', color: '#f59000' });
+    xSnapEl.push({ test: el.x, ref: o.x, snap: () => { el.x = Math.round(o.x); },            label: '↔', color: '#f59000' });
+    xSnapEl.push({ test: elR,  ref: oR,  snap: () => { el.x = Math.round(oR - el.w); },       label: '↔', color: '#f59000' });
+  });
+
+  for (const c of [...xSnapCenter, ...xSnapEdge, ...xSnapEl]) {
+    if (Math.abs(c.test - c.ref) < thr) {
+      c.snap(); guides.push({ type: 'v', pos: c.ref, color: c.color, label: c.label }); break;
+    }
+  }
+
+  // ── Eixo Y (guias horizontais) ────────────────────────────────
+  const ySnapCenter = [
+    { test: elCY, ref: ccy, snap: () => { el.y = Math.round(ccy - el.h / 2); }, label: '↕ centro', color: '#2a6ef5' },
+    { test: el.y, ref: ccy, snap: () => { el.y = Math.round(ccy); },             label: '↕ centro', color: '#2a6ef5' },
+    { test: elB,  ref: ccy, snap: () => { el.y = Math.round(ccy - el.h); },      label: '↕ centro', color: '#2a6ef5' },
+  ];
+  const ySnapEdge = [
+    { test: el.y, ref: 0,  snap: () => { el.y = 0; },       label: 'topo', color: '#e24b4a' },
+    { test: elB,  ref: ch, snap: () => { el.y = ch - el.h; }, label: 'base', color: '#e24b4a' },
+  ];
+  const ySnapEl = [];
+  elements.forEach(o => {
+    if (o.id === el.id) return;
+    const oCY = o.y + o.h / 2, oB = o.y + o.h;
+    ySnapEl.push({ test: elCY, ref: oCY, snap: () => { el.y = Math.round(oCY - el.h / 2); }, label: '↕', color: '#f59000' });
+    ySnapEl.push({ test: el.y, ref: o.y, snap: () => { el.y = Math.round(o.y); },             label: '↕', color: '#f59000' });
+    ySnapEl.push({ test: elB,  ref: oB,  snap: () => { el.y = Math.round(oB - el.h); },        label: '↕', color: '#f59000' });
+  });
+
+  for (const c of [...ySnapCenter, ...ySnapEdge, ...ySnapEl]) {
+    if (Math.abs(c.test - c.ref) < thr) {
+      c.snap(); guides.push({ type: 'h', pos: c.ref, color: c.color, label: c.label }); break;
+    }
+  }
+
+  _renderGuides(guides);
+}
+
+document.addEventListener('mousemove', e => {
+  if (dragging !== null) {
+    const el = getEl(dragging); if (!el) return;
+    const cr = canvas.getBoundingClientRect();
+    el.x = Math.round((e.clientX - cr.left - dragOff.x) / zoom);
+    el.y = Math.round((e.clientY - cr.top  - dragOff.y) / zoom);
+    checkAndSnap(el); // detecta alinhamento e aplica snap — pode modificar el.x / el.y
+    const div = canvas.querySelector(`[data-id="${dragging}"]`);
+    if (div) { div.style.left = el.x * zoom + 'px'; div.style.top = el.y * zoom + 'px'; }
+    updateProps();
+  }
+  if (resizing !== null) {
+    const el = getEl(resizing); if (!el) return;
+    const divRes = canvas.querySelector(`[data-id="${resizing}"]`);
+    if (!divRes) return;
+    const cr = divRes.getBoundingClientRect();
+    el.w = Math.max(20, Math.round((e.clientX - cr.left) / zoom));
+    el.h = Math.max(20, Math.round((e.clientY - cr.top)  / zoom));
+    divRes.style.width  = el.w * zoom + 'px';
+    divRes.style.height = el.h * zoom + 'px';
+    updateProps();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (resizing !== null) {
+    reRender(resizing);
+  }
+  dragging = null;
+  resizing = null;
+  hideAllGuides();
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (e.target === canvas || e.target.id === 'canvas-bg') {
+    selectedId = null; showProps(null); applySelection(null);
+  }
+});
+
+// ── Seleção e props ───────────────────────────────────────────────
+// selectEl reconstrói o DOM apenas quando chamado de fora do drag (ex: loadPattern)
+function selectEl(id) { selectedId = id; renderAll(); showProps(id); }
+
+function showProps(id) {
+  const el = getEl(id);
+  document.getElementById('no-sel-msg').style.display = el ? 'none' : 'block';
+  document.getElementById('props-panel').style.display = el ? 'block' : 'none';
+  document.getElementById('text-props').style.display = (el && (el.type==='text'||el.type==='number')) ? 'block' : 'none';
+  document.getElementById('qr-props').style.display = (el && el.type==='qr') ? 'block' : 'none';
+  document.getElementById('bc-props').style.display = (el && el.type==='barcode') ? 'block' : 'none';
+  document.getElementById('logo-props').style.display = (el && el.type==='logo') ? 'block' : 'none';
+  if (!el) return;
+  document.getElementById('p-x').value = Math.round(el.x);
+  document.getElementById('p-y').value = Math.round(el.y);
+  document.getElementById('p-w').value = Math.round(el.w);
+  document.getElementById('p-h').value = Math.round(el.h);
+  document.getElementById('p-rot').value = el.rot || 0;
+  if (el.type==='text'||el.type==='number') {
+    document.getElementById('p-text').value = el.text || '';
+    document.getElementById('p-fs').value = el.fs || 18;
+    _syncCor(el.color || '#000000');
+    document.getElementById('p-bold').checked = el.bold || false;
+    document.getElementById('p-align').value = el.align || 'center';
+  }
+  if (el.type==='qr') document.getElementById('p-qrdata').value = el.qrdata || '';
+  if (el.type==='barcode') {
+    document.getElementById('p-bc-cortev').value = el.bc_cortev ?? 27;
+    document.getElementById('p-bc-cortee').value = el.bc_cortee ?? 8;
+    document.getElementById('p-bc-corted').value = el.bc_corted ?? 8;
+    document.getElementById('p-bc-rotbarra').value = el.bc_rotbarra ?? 0;
+  }
+}
+
+function updateProps() {
+  const el = getEl(selectedId); if (!el) return;
+  document.getElementById('p-x').value = Math.round(el.x);
+  document.getElementById('p-y').value = Math.round(el.y);
+  document.getElementById('p-w').value = Math.round(el.w);
+  document.getElementById('p-h').value = Math.round(el.h);
+}
+
+function _syncCor(val) {
+  const v = (val || '#000000').toLowerCase();
+  document.getElementById('p-color').value = v;
+  document.getElementById('cor-hex').textContent = v;
+  document.getElementById('cor-preto').classList.toggle('ativo', v === '#000000');
+  document.getElementById('cor-branco').classList.toggle('ativo', v === '#ffffff');
+}
+
+function setCor(val) {
+  applyProp('color', val);
+  _syncCor(val);
+}
+
+function applyProp(prop, val) {
+  const el = getEl(selectedId); if (!el) return;
+  saveHistoryDebounced(); _marcarModificado();
+  const num = v => parseFloat(v) || 0;
+  const map = {
+    x:()=>el.x=num(val), y:()=>el.y=num(val),
+    w:()=>el.w=Math.max(20,num(val)), h:()=>el.h=Math.max(20,num(val)),
+    rot:()=>el.rot=num(val), text:()=>el.text=val, fs:()=>el.fs=num(val),
+    color:()=>el.color=val, bold:()=>el.bold=val, align:()=>el.align=val,
+    qrdata:()=>el.qrdata=val,
+    bc_cortev:()=>el.bc_cortev=num(val),
+    bc_cortee:()=>el.bc_cortee=num(val),
+    bc_corted:()=>el.bc_corted=num(val),
+    bc_rotbarra:()=>el.bc_rotbarra=parseInt(val)||0,
+  };
+  if (map[prop]) map[prop]();
+  reRender(selectedId);
+}
+
+// ── Adicionar elementos ───────────────────────────────────────────
+function addCode() {
+  if (codeType === 'qr') {
+    push({type:'qr',x:50,y:50,w:130,h:130,qrdata:'https://pediucomeu.com.br/'});
+  } else {
+    push({type:'barcode',x:50,y:50,w:200,h:70,numPreview:1,bc_cortev:27,bc_cortee:8,bc_corted:8,bc_rotbarra:0});
+  }
+}
+function addText() { push({type:'text',x:50,y:200,w:200,h:44,text:'Texto livre',fs:20,color:'#000000',bold:false,align:'center'}); }
+function addNumber() { push({type:'number',x:50,y:260,w:200,h:64,fs:38,color:'#000000',bold:true,align:'center',numPreview:1}); }
+function push(data) {
+  saveHistory(); _marcarModificado(); _atualizarBtnUndo();
+  const el = Object.assign({id:uid(), z:elements.length}, data);
+  elements.push(el); selectEl(el.id);
+}
+
+function handleLogo(ev) {
+  const file = ev.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => push({type:'logo',x:50,y:50,w:150,h:100,src:e.target.result});
+  reader.readAsDataURL(file);
+  ev.target.value = '';
+}
+
+function deleteEl(id) { saveHistory(); _marcarModificado(); _atualizarBtnUndo(); elements = elements.filter(e => e.id !== id); if (selectedId===id){selectedId=null;showProps(null);} renderAll(); }
+function deleteSelected() { if (selectedId!==null) deleteEl(selectedId); }
+function moveLayer(dir) { const el=getEl(selectedId); if(!el) return; el.z=(el.z||0)+dir; renderAll(); }
+
+function setRot(graus) {
+  const el = getEl(selectedId); if (!el) return;
+  // 0° = reset absoluto; demais = incremento acumulativo
+  const novo = graus === 0 ? 0 : ((el.rot || 0) + graus) % 360;
+  applyProp('rot', novo);
+  document.getElementById('p-rot').value = novo;
+}
+
+function duplicarEl() {
+  if (selectedId === null) { toast('Selecione um elemento primeiro.'); return; }
+  const el = getEl(selectedId); if (!el) return;
+  saveHistory();
+  const novo = { ...JSON.parse(JSON.stringify(el)), id: uid(), x: (el.x||0)+20, y: (el.y||0)+20, z: elements.length };
+  elements.push(novo);
+  selectEl(novo.id);
+  toast('⧉ Elemento duplicado');
+}
+
+// ── Padrões ───────────────────────────────────────────────────────
+function savePattern() {
+  document.getElementById('modal-pattern-name').value = '';
+  document.getElementById('modal-pattern').style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-pattern-name').focus(), 50);
+}
+function confirmSavePattern() {
+  const name = document.getElementById('modal-pattern-name').value.trim();
+  if (!name) { alert('Digite um nome.'); return; }
+  const pat = {
+    id: Date.now(), name, codeType,
+    date: new Date().toLocaleDateString('pt-BR'),
+    elements: JSON.parse(JSON.stringify(elements)),
+    canvasW: document.getElementById('cv-w').value,
+    canvasH: document.getElementById('cv-h').value,
+  };
+  patterns.push(pat);
+  localStorage.setItem('cmdpatterns_v3', JSON.stringify(patterns));
+  renderPatterns(); closeModal('modal-pattern');
+  toast('Padrão salvo!');
+}
+function loadPattern(id) {
+  const p = patterns.find(x => x.id===id); if(!p) return;
+  if (p.codeType !== codeType) {
+    const tipoNome = p.codeType === 'qr' ? 'QR Code' : 'Código de Barras';
+    if (!confirm(`"${p.name}" é um padrão de ${tipoNome}.\nCarregar irá alterar o modo atual para ${tipoNome}. Deseja continuar?`)) return;
+  } else {
+    if (!confirm(`Carregar "${p.name}"? O canvas atual será substituído.`)) return;
+  }
+  codeType = p.codeType;
+  elements = JSON.parse(JSON.stringify(p.elements));
+  idCounter = elements.reduce((m,e) => Math.max(m,e.id), 0);
+  document.getElementById('cv-w').value = p.canvasW || 400;
+  document.getElementById('cv-h').value = p.canvasH || 600;
+  document.getElementById('type-badge').textContent = codeType==='qr' ? 'QR Code' : 'Código de Barras';
+  document.getElementById('btn-code-ico').textContent = codeType==='qr' ? '📱' : '🔢';
+  document.getElementById('btn-code-lbl').textContent = codeType==='qr' ? 'QR Code' : 'Código de Barras';
+  const isQR = codeType === 'qr';
+  document.getElementById('sec-documento').style.display = isQR ? 'block' : 'none';
+  document.getElementById('sec-prefixo').style.display = isQR ? 'none' : 'block';
+  window.codeType = codeType;
+  resizeCanvas(); selectedId=null; showProps(null); renderAll();
+}
+function deletePattern(id) {
+  if (!confirm('Excluir este padrão?')) return;
+  patterns = patterns.filter(p => p.id!==id);
+  localStorage.setItem('cmdpatterns_v3', JSON.stringify(patterns));
+  renderPatterns();
+}
+function renderPatterns() {
+  const list = document.getElementById('patterns-list');
+  const none = document.getElementById('no-patterns');
+  const filtered = patterns.filter(p => p.codeType === codeType);
+  if (!filtered.length) { list.innerHTML=''; none.style.display='block'; return; }
+  none.style.display = 'none';
+  _atualizarBadgePadroes();
+  list.innerHTML = filtered.map(p => `
+    <div class="pat-item" onclick="loadPattern(${p.id})">
+      <div>
+        <div class="pat-name">${p.name}</div>
+        <div class="pat-meta">${p.date} · ${p.elements.length} elem.</div>
+      </div>
+      <button class="icon-btn danger" onclick="event.stopPropagation();deletePattern(${p.id})" title="Excluir">🗑</button>
+    </div>`).join('');
+}
+
+// ── Preview multi-página ─────────────────────────────────────────
+let pvNums  = [];          // números escolhidos pelo usuário
+let pvCache = {};          // cache: numero → objectURL
+let pvIdx   = 0;           // índice atual na lista pvNums
+let pvMode  = 'canvas';    // 'canvas' | 'qr-img'
+
+function openQrImgPreviewModal() {
+  const doc  = (document.getElementById('qi-documento')?.value || '').trim();
+  const tipo = document.getElementById('qi-tipo-doc')?.value || 'CNPJ';
+  const nums = doc.replace(/\D/g, '');
+  const needed = tipo === 'CNPJ' ? 14 : 11;
+  if (nums.length !== needed) {
+    alert(`Preencha o ${tipo} completo (${needed} dígitos) antes de fazer o preview.`);
+    document.getElementById('qi-documento')?.focus();
+    return;
+  }
+  pvMode  = 'qr-img';
+  pvCache = {};
+  const h3 = document.getElementById('pv-modal-titulo');
+  if (h3) h3.textContent = '👁 Preview QR Code';
+  // Pré-preenche intervalo com valores do modal QR
+  const ini = parseInt(document.getElementById('qi-ini')?.value) || 1;
+  const fim = Math.min(parseInt(document.getElementById('qi-fim')?.value) || 5, ini + 9);
+  document.getElementById('pv-range-ini').value = ini;
+  document.getElementById('pv-range-fim').value = fim;
+  if (!pvNums.length) pvNums = [ini];
+  renderPvTags();
+  document.getElementById('modal-preview').style.display = 'flex';
+  setTimeout(() => document.getElementById('pv-range-ini').focus(), 80);
+}
+
+function openPreviewModal() {
+  if (!elements.length) { alert('Adicione elementos ao canvas antes de visualizar.'); return; }
+  if (!validarDocumentoQR()) return;
+  pvMode  = 'canvas';
+  pvCache = {};
+  const tipo = codeType === 'qr' ? 'QR Code' : 'Código de Barras';
+  const h3 = document.getElementById('pv-modal-titulo');
+  if (h3) h3.textContent = `👁 Preview — ${tipo}`;
+  // Pré-preenche intervalo com valores do painel de geração
+  const ini = parseInt(document.getElementById('lote-ini')?.value) || 1;
+  const fim = Math.min(parseInt(document.getElementById('lote-fim')?.value) || 5, ini + 9);
+  document.getElementById('pv-range-ini').value = ini;
+  document.getElementById('pv-range-fim').value = fim;
+  // Pré-popula com comanda nº ini se lista vazia
+  if (!pvNums.length) { pvNums = [ini]; }
+  renderPvTags();
+  closeModal('modal-gerar');
+  document.getElementById('modal-preview').style.display = 'flex';
+  setTimeout(() => document.getElementById('pv-range-ini').focus(), 80);
+}
+
+function pvAddNum() {
+  const v = parseInt(document.getElementById('pv-num-input').value);
+  if (!v || v < 1) return;
+  if (!pvNums.includes(v)) { pvNums.push(v); pvNums.sort((a,b)=>a-b); }
+  document.getElementById('pv-num-input').value = '';
+  renderPvTags();
+}
+
+function pvAddRange() { /* mantido por compatibilidade */ }
+
+function pvConfirmRange() {
+  const ini = parseInt(document.getElementById('pv-range-ini').value) || 1;
+  const fim = parseInt(document.getElementById('pv-range-fim').value) || 1;
+  if (fim < ini) { toast('O Nº final deve ser maior que o inicial.'); return; }
+  if ((fim - ini) > 49) { toast('Máximo 50 comandas por vez no preview.'); return; }
+  for (let n = ini; n <= fim; n++) { if (!pvNums.includes(n)) pvNums.push(n); }
+  pvNums.sort((a, b) => a - b);
+  renderPvTags();
+}
+
+function pvRemoveNum(n) {
+  pvNums = pvNums.filter(x => x !== n);
+  renderPvTags();
+}
+
+function pvClear() { pvNums = []; renderPvTags(); }
+
+function renderPvTags() {
+  const wrap  = document.getElementById('preview-tags');
+  const count = document.getElementById('pv-count-badge');
+  const btn   = document.getElementById('pv-start-btn');
+
+  if (!pvNums.length) {
+    wrap.innerHTML = '<span style="font-size:11px;color:var(--text2)">Nenhuma comanda adicionada.</span>';
+    if (count) count.textContent = '0 comandas';
+    if (btn)   { btn.disabled = true; btn.textContent = '👁 Visualizar'; }
+    return;
+  }
+
+  wrap.innerHTML = pvNums.map(n =>
+    `<span class="num-tag">#${n}<button onclick="pvRemoveNum(${n})" title="Remover">×</button></span>`
+  ).join('');
+
+  const n = pvNums.length;
+  if (count) count.textContent = `${n} comanda${n > 1 ? 's' : ''}`;
+  if (btn)   { btn.disabled = false; btn.textContent = `👁 Visualizar ${n} comanda${n > 1 ? 's' : ''}`; }
+}
+
+async function pvStart() {
+  if (!pvNums.length) return;
+  closeModal('modal-preview');
+  pvCache = {};
+  pvIdx = 0;
+  document.getElementById('preview-overlay').style.display = 'flex';
+  await pvLoad(pvNums[0]);
+  pvUpdateNav();
+}
+
+async function pvLoad(num) {
+  const tipoLabel = codeType === 'barcode' ? 'Código de Barras' : 'QR Code';
+  const titulo = pvMode === 'qr-img'
+    ? `Preview QR Code — #${num}`
+    : `Preview ${tipoLabel} — Comanda #${num}`;
+  if (pvCache[num]) {
+    document.getElementById('preview-img').src = pvCache[num];
+    document.getElementById('pv-title').textContent = titulo;
+    return;
+  }
+  document.getElementById('preview-spinner').style.display = 'flex';
+  document.getElementById('preview-img').style.opacity = '0.3';
+  try {
+    let blob;
+    if (pvMode === 'qr-img') {
+      const doc  = document.getElementById('qi-documento')?.value || document.getElementById('documento')?.value || '';
+      const tDoc = document.getElementById('qi-tipo-doc')?.value  || document.getElementById('tipo-doc')?.value  || 'CNPJ';
+      const fd = new FormData();
+      fd.append('numero',           num);
+      fd.append('documento',        doc);
+      fd.append('tipo_doc',         tDoc);
+      fd.append('cfg_sistema_json', JSON.stringify(configSistema));
+      const r = await fetch('/preview-qr-img', { method:'POST', body:fd });
+      if (!r.ok) { const t = await r.text(); throw new Error((JSON.parse(t).detail || t)); }
+      blob = await r.blob();
+    } else {
+      const arquivo = await buildArquivoTemplate();
+      const fd = new FormData();
+      fd.append('template', arquivo);
+      fd.append('numero', num);
+      fd.append('layout', JSON.stringify(buildLayout()));
+      const r = await fetch('/preview', { method:'POST', body:fd });
+      if (!r.ok) { const t = await r.text(); throw new Error(JSON.parse(t).detail || t); }
+      blob = await r.blob();
+    }
+    pvCache[num] = URL.createObjectURL(blob);
+    document.getElementById('preview-img').src = pvCache[num];
+    document.getElementById('pv-title').textContent = titulo;
+  } catch(e) {
+    alert('Erro no preview:\n\n' + e.message);
+    document.getElementById('preview-overlay').style.display = 'none';
+  } finally {
+    document.getElementById('preview-spinner').style.display = 'none';
+    document.getElementById('preview-img').style.opacity = '1';
+  }
+}
+
+async function pvNav(dir) {
+  pvIdx = Math.max(0, Math.min(pvNums.length - 1, pvIdx + dir));
+  pvUpdateNav();
+  await pvLoad(pvNums[pvIdx]);
+}
+
+function pvUpdateNav() {
+  document.getElementById('pv-counter').textContent = `${pvIdx + 1} / ${pvNums.length}`;
+  document.getElementById('pv-prev').disabled = pvIdx === 0;
+  document.getElementById('pv-next').disabled = pvIdx === pvNums.length - 1;
+}
+
+function closePvOverlay() {
+  document.getElementById('preview-overlay').style.display = 'none';
+  if (pvMode === 'qr-img') {
+    pvMode = 'canvas';
+    pvCache = {};
+    // Restaura título do modal de preview
+    const h3 = document.querySelector('#modal-preview h3');
+    if (h3) h3.textContent = '👁 Configurar Preview';
+  }
+}
+
+// ── Trava de segurança: documento obrigatório para QR Code ───────
+function validarDocumentoQR() {
+  if (codeType !== 'qr') return true;
+  const doc  = (document.getElementById('documento')?.value || '').trim();
+  const tipo = document.getElementById('tipo-doc')?.value || 'CNPJ';
+  const nums = doc.replace(/\D/g, '');
+  const needed = tipo === 'CNPJ' ? 14 : 11;
+  if (nums.length !== needed) {
+    alert(
+      `⚠️ Documento obrigatório para gerar QR Code\n\n` +
+      `Preencha o ${tipo} completo (${needed} dígitos) no painel esquerdo,\n` +
+      `na seção "Dados do documento (QR Code)".\n\n` +
+      `Sem o documento o QR Code não pode ser gerado.`
+    );
+    // Destaca o campo visualmente
+    const el = document.getElementById('documento');
+    if (el) { el.focus(); el.style.borderColor = 'var(--danger)'; setTimeout(() => el.style.borderColor = '', 2500); }
+    return false;
+  }
+  return true;
+}
+
+// ── Gerar QR Imagens (ZIP) ────────────────────────────────────────
+let qiPresets    = {};
+let qiTamanhoSel = 'alta';
+
+async function abrirModalQrImg() {
+  if (!Object.keys(qiPresets).length) {
+    try {
+      const d = await (await fetch('/qr-img-presets')).json();
+      qiPresets    = d.presets;
+      qiTamanhoSel = d.padrao;
+    } catch {
+      qiPresets = {
+        baixa:  { px: 400,  label: 'Baixa  (400 px)',  lote_max: 500 },
+        media:  { px: 800,  label: 'Média  (800 px)',  lote_max: 300 },
+        alta:   { px: 1200, label: 'Alta   (1200 px)', lote_max: 150 },
+        maxima: { px: 2000, label: 'Máxima (2000 px)', lote_max: 80  },
+      };
+    }
+  }
+  // Resetar estado
+  document.getElementById('qi-aceite').checked   = false;
+  document.getElementById('qi-progresso').style.display = 'none';
+  document.getElementById('qi-prog-bar').style.background = 'var(--accent)';
+  document.getElementById('qi-prog-bar').style.width      = '0%';
+  document.getElementById('qi-btn').disabled          = false;
+  document.getElementById('qi-btn').textContent       = '⬇ Gerar ZIP';
+  document.getElementById('qi-btn-cancelar').disabled = false;
+  qiRenderTamanhos();
+  qiAtualizarInfo();
+  _qiAtualizarDoc();
+  document.getElementById('modal-qr-img').style.display = 'flex';
+}
+
+function qiRenderTamanhos() {
+  document.getElementById('qi-tamanho-btns').innerHTML = Object.entries(qiPresets).map(([k, p]) => {
+    const sel = k === qiTamanhoSel;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius);border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--surface)'};cursor:pointer;font-size:12px" onclick="qiSelecionarTamanho('${k}')">
+      <input type="radio" name="qi-tam" value="${k}" ${sel?'checked':''} style="accent-color:var(--accent)">
+      <div><span style="font-weight:500">${p.label}</span>
+      <span style="color:var(--text2);font-size:11px;margin-left:6px">· máx ${p.lote_max}/lote</span></div>
+    </label>`;
+  }).join('');
+}
+
+function qiSelecionarTamanho(key) {
+  qiTamanhoSel = key;
+  qiRenderTamanhos();
+  qiAtualizarInfo();
+}
+
+function qiSincronizarDoc() {
+  const val  = (document.getElementById('qi-documento').value || '').trim();
+  const tipo = document.getElementById('qi-tipo-doc').value   || 'CNPJ';
+  // Espelha nos campos principais (usados por validarDocumentoQR e buildLayout)
+  const docEl  = document.getElementById('documento');
+  const tipoEl = document.getElementById('tipo-doc');
+  if (docEl)  docEl.value  = val;
+  if (tipoEl) tipoEl.value = tipo;
+  // Feedback visual
+  const nums   = val.replace(/\D/g, '');
+  const needed = tipo === 'CNPJ' ? 14 : 11;
+  const status = document.getElementById('qi-doc-status');
+  if (nums.length === needed) {
+    status.textContent = `✅ ${tipo} válido`;
+    status.style.color = 'var(--success,#2e7d32)';
+  } else if (nums.length > 0) {
+    status.textContent = `${nums.length} de ${needed} dígitos`;
+    status.style.color = 'var(--danger)';
+  } else {
+    status.textContent = `Informe os ${needed} dígitos do ${tipo}`;
+    status.style.color = 'var(--text2)';
+  }
+}
+
+function _qiAtualizarDoc() {
+  // Carrega os valores do painel esquerdo para o modal ao abrir
+  const doc  = document.getElementById('documento')?.value  || '';
+  const tipo = document.getElementById('tipo-doc')?.value   || 'CNPJ';
+  document.getElementById('qi-documento').value = doc;
+  document.getElementById('qi-tipo-doc').value  = tipo;
+  qiSincronizarDoc();
+}
+
+
+function qiAtualizarInfo() {
+  const ini     = parseInt(document.getElementById('qi-ini').value) || 1;
+  const fim     = parseInt(document.getElementById('qi-fim').value) || 1;
+  const total   = fim - ini + 1;
+  const loteMax = (qiPresets[qiTamanhoSel] || {}).lote_max || 150;
+  const info    = document.getElementById('qi-info');
+  if (total <= 0) { info.textContent = 'Nº final deve ser maior que o inicial.'; return; }
+  const lotes   = Math.ceil(total / loteMax);
+  if (lotes > 1) {
+    info.innerHTML = `<span style="color:var(--text2)">📦 ${total} QR Codes → <b>${lotes} ZIPs</b> de até ${loteMax} por vez.</span>`;
+  } else {
+    info.innerHTML = `<span style="color:var(--success,#2e7d32)">✅ ${total} QR Code(s) em <b>1 ZIP</b>.</span>`;
+  }
+}
+
+function _qiProgresso(concluidos, total, label, detalhe) {
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+  document.getElementById('qi-prog-bar').style.width = pct + '%';
+  if (label)   document.getElementById('qi-prog-label').textContent   = label;
+  if (detalhe !== undefined) document.getElementById('qi-prog-detalhe').textContent = detalhe;
+}
+
+async function gerarQrImagens() {
+  if (!validarDocumentoQR()) return;
+  if (!document.getElementById('qi-aceite').checked) {
+    alert('Marque que já validou os QR Codes no preview.');
+    return;
+  }
+
+  const ini     = parseInt(document.getElementById('qi-ini').value) || 1;
+  const fim     = parseInt(document.getElementById('qi-fim').value) || 1;
+  if (fim < ini) { alert('Nº final deve ser maior que o inicial.'); return; }
+
+  const qual    = parseInt(document.querySelector('input[name="qi-qual"]:checked')?.value || 95);
+  const px      = (qiPresets[qiTamanhoSel] || {}).px || 1200;
+  const loteMax = (qiPresets[qiTamanhoSel] || {}).lote_max || 150;
+  const doc     = document.getElementById('documento')?.value || '';
+  const tDoc    = document.getElementById('tipo-doc')?.value  || 'CNPJ';
+  const total   = fim - ini + 1;
+
+  // Montar lotes
+  const lotes = [];
+  for (let s = ini; s <= fim; s += loteMax)
+    lotes.push({ ini: s, fim: Math.min(s + loteMax - 1, fim) });
+
+  const btn     = document.getElementById('qi-btn');
+  const btnCanc = document.getElementById('qi-btn-cancelar');
+  btn.disabled = true; btn.textContent = '⏳ Gerando...';
+  btnCanc.disabled = true;
+  document.getElementById('qi-progresso').style.display = 'block';
+  _qiProgresso(0, lotes.length, `Iniciando geração de ${total} QR Code(s)...`, '');
+
+  let concluidos = 0;
+  let erros = 0;
+
+  for (let i = 0; i < lotes.length; i++) {
+    const lote = lotes[i];
+    const qtd  = lote.fim - lote.ini + 1;
+    _qiProgresso(i, lotes.length,
+      `Gerando lote ${i+1} de ${lotes.length}: QR Codes ${lote.ini} a ${lote.fim}...`,
+      `${i} de ${lotes.length} lotes concluídos · ${concluidos} de ${total} arquivos`
+    );
+    try {
+      const fd = new FormData();
+      fd.append('inicio',           lote.ini);
+      fd.append('fim',              lote.fim);
+      fd.append('documento',        doc);
+      fd.append('tipo_doc',         tDoc);
+      fd.append('tamanho_px',       px);
+      fd.append('qualidade_jpg',    qual);
+      fd.append('cfg_sistema_json', JSON.stringify(configSistema));
+
+      const r = await fetch('/gerar-qr-zip', { method: 'POST', body: fd });
+      if (!r.ok) {
+        const t = await r.text();
+        let msg = t; try { msg = JSON.parse(t).detail; } catch {}
+        throw new Error(msg);
+      }
+      const blob = await r.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = lotes.length > 1 ? `qrcodes_${lote.ini}_a_${lote.fim}.zip` : `qrcodes_${ini}_a_${fim}.zip`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 3000);
+
+      concluidos += qtd;
+      _qiProgresso(i + 1, lotes.length, null,
+        `${i+1} de ${lotes.length} lotes concluídos · ${concluidos} de ${total} arquivos`
+      );
+    } catch (e) {
+      erros++;
+      _qiProgresso(i + 1, lotes.length,
+        `❌ Erro no lote ${i+1}: ${e.message}`, null);
+    }
+  }
+
+  // Resultado final
+  if (erros === 0) {
+    const label = document.getElementById('qi-prog-label');
+    label.textContent = `✅ Todos os ${lotes.length} lote(s) gerados com sucesso!`;
+    label.style.cssText = 'font-size:15px;font-weight:700;color:#1b5e20;background:#e8f5e9;border:2px solid #a5d6a7;border-radius:8px;padding:10px 14px;text-align:center;margin-bottom:6px';
+    document.getElementById('qi-prog-bar').style.background = '#2e7d32';
+    document.getElementById('qi-prog-detalhe').textContent  = `${total} arquivo(s) JPG em ${lotes.length} ZIP(s).`;
+  } else {
+    document.getElementById('qi-prog-label').textContent = `Concluído com ${erros} erro(s). Verifique e tente novamente.`;
+  }
+
+  btn.disabled = false; btn.textContent = '⬇ Gerar ZIP';
+  btnCanc.disabled = false;
+  btnCanc.textContent = 'Fechar';
+}
+
+// ── Estado: projeto modificado ───────────────────────────────────
+let _projetoModificado = false;
+
+function _marcarModificado() {
+  if (_projetoModificado) return;
+  _projetoModificado = true;
+  document.getElementById('unsaved-dot')?.style && (document.getElementById('unsaved-dot').style.display = 'inline-block');
+}
+
+function _marcarSalvo() {
+  _projetoModificado = false;
+  const d = document.getElementById('unsaved-dot');
+  if (d) d.style.display = 'none';
+}
+
+// ── Modal de confirmação genérico ────────────────────────────────
+function _confirmar(ico, titulo, msg, onOk) {
+  document.getElementById('modal-confirmar-ico').textContent     = ico;
+  document.getElementById('modal-confirmar-titulo').textContent  = titulo;
+  document.getElementById('modal-confirmar-msg').textContent     = msg;
+  const btn = document.getElementById('modal-confirmar-ok');
+  btn.onclick = () => { closeModal('modal-confirmar'); onOk(); };
+  document.getElementById('modal-confirmar').style.display = 'flex';
+}
+
+function confirmarTrocarTipo() {
+  if (!elements.length) { voltarEscolha(); return; }
+  _confirmar('⇄', 'Mudar tipo de código?',
+    'O canvas atual será apagado. Salve o projeto antes se quiser reutilizar este layout.',
+    () => voltarEscolha(true));
+}
+
+function confirmarNovo() {
+  if (!elements.length) { _novoCanvas(); return; }
+  _confirmar('🗋', 'Criar novo projeto?',
+    'Todos os elementos do canvas serão removidos. Esta ação pode ser desfeita com Ctrl+Z.',
+    _novoCanvas);
+}
+
+function _novoCanvas() {
+  saveHistory(); _marcarModificado();
+  elements = []; selectedId = null; showProps(null); renderAll();
+}
+
+// ── Snap toggle ───────────────────────────────────────────────────
+let snapEnabled = true;
+
+function toggleSnap() {
+  snapEnabled = !snapEnabled;
+  const btn = document.getElementById('btn-snap');
+  btn.classList.toggle('active', snapEnabled);
+  btn.title = snapEnabled ? 'Guias de alinhamento: ON (clique para desligar)' : 'Guias de alinhamento: OFF (clique para ligar)';
+  if (!snapEnabled) hideAllGuides();
+  toast(snapEnabled ? '📐 Guias ativadas' : '📐 Guias desativadas');
+}
+
+// ── Preview rápido (sem abrir modal de configuração) ─────────────
+async function pvQuick() {
+  if (!elements.length) { alert('Adicione elementos ao canvas antes de visualizar.'); return; }
+  if (!validarDocumentoQR()) return;
+  pvMode = 'canvas';
+  pvCache = {}; pvNums = [1]; pvIdx = 0;
+  document.getElementById('preview-overlay').style.display = 'flex';
+  pvUpdateNav();
+  await pvLoad(1);
+}
+
+// ── Indicador de undo na topbar ──────────────────────────────────
+function _atualizarBtnUndo() {
+  const btn   = document.getElementById('btn-undo');
+  const badge = document.getElementById('undo-count');
+  if (!btn) return;
+  const n = _undoStack.length;
+  btn.disabled = n === 0;
+  if (badge) badge.textContent = n > 0 ? n : '';
+}
+
+// ── Verificação visual do documento (painel esq.) ────────────────
+function verificarDocumento() {
+  const doc    = (document.getElementById('documento')?.value || '').trim();
+  const tipo   = document.getElementById('tipo-doc')?.value || 'CNPJ';
+  const nums   = doc.replace(/\D/g, '');
+  const needed = tipo === 'CNPJ' ? 14 : 11;
+  const badge  = document.getElementById('doc-status-badge');
+  const fb     = document.getElementById('doc-feedback');
+  const campo  = document.getElementById('documento');
+  if (nums.length === needed) {
+    if (badge) { badge.textContent = '✅ válido'; badge.style.background = '#d4edda'; badge.style.color = '#155724'; }
+    if (fb)    { fb.textContent = ''; }
+    if (campo) campo.style.borderColor = '';
+  } else {
+    if (badge) { badge.textContent = '⚠ obrigatório'; badge.style.background = '#ffeeba'; badge.style.color = '#856404'; }
+    if (fb)    { fb.textContent = nums.length > 0 ? `${nums.length} de ${needed} dígitos` : ''; fb.style.color = 'var(--danger)'; }
+    if (campo) campo.style.borderColor = nums.length > 0 ? 'var(--danger)' : '';
+  }
+}
+
+// ── Badge de modo nos padrões salvos ─────────────────────────────
+function _atualizarBadgePadroes() {
+  const badge = document.getElementById('patterns-mode-badge');
+  if (!badge || !codeType) return;
+  badge.textContent = codeType === 'qr' ? 'QR Code' : 'Código de Barras';
+}
+
+// ── Ctrl+Scroll para zoom ─────────────────────────────────────────
+document.addEventListener('wheel', e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  changeZoom(e.deltaY < 0 ? 0.1 : -0.1);
+}, { passive: false });
+
+// ── Tema escuro ──────────────────────────────────────────────────
+(function () {
+  if (localStorage.getItem('darkMode') === 'true')
+    document.documentElement.setAttribute('data-theme', 'dark');
+})();
+
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('darkMode', String(!isDark));
+  document.getElementById('btn-dark').textContent = isDark ? '🌙' : '☀️';
+}
+
+// Sincroniza ícone do botão ao abrir o editor
+function _initDarkBtn() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const btn = document.getElementById('btn-dark');
+  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+}
+
+// ── Recortar / Copiar / Colar ─────────────────────────────────────
+let _clipboard = null;
+
+function copyEl() {
+  if (selectedId === null) { toast('Selecione um elemento primeiro.'); return; }
+  _clipboard = JSON.parse(JSON.stringify(getEl(selectedId)));
+  toast('📋 Copiado — Ctrl+V para colar');
+}
+
+function cutEl() {
+  if (selectedId === null) { toast('Selecione um elemento primeiro.'); return; }
+  _clipboard = JSON.parse(JSON.stringify(getEl(selectedId)));
+  saveHistory();
+  deleteEl(selectedId);
+  toast('✂️ Recortado — Ctrl+V para colar');
+}
+
+function pasteEl() {
+  if (!_clipboard) { toast('Nada na área de transferência.'); return; }
+  saveHistory();
+  const novo = { ..._clipboard, id: uid(), x: (_clipboard.x || 0) + 20, y: (_clipboard.y || 0) + 20, z: elements.length };
+  elements.push(novo);
+  selectEl(novo.id);
+  toast('📌 Colado');
+}
+
+// ── Salvar / Carregar arte (arquivo de projeto .comanda) ─────────
+function salvarArte() {
+  if (elements.length === 0) { toast('Canvas vazio — adicione elementos primeiro.'); return; }
+  if (!validarDocumentoQR()) return;
+  const projeto = {
+    _versao: 2,
+    codeType,
+    elements: JSON.parse(JSON.stringify(elements)),
+    canvasW: parseInt(document.getElementById('cv-w').value) || 400,
+    canvasH: parseInt(document.getElementById('cv-h').value) || 600,
+    bgMode,
+    bgColor,
+    templateDataURL: templateDataURL || null,
+    configSistema: { ...configSistema },
+  };
+  const blob = new Blob([JSON.stringify(projeto)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `comanda_${codeType}_${Date.now()}.comanda`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+  _marcarSalvo();
+  toast('💾 Projeto salvo como arquivo .comanda');
+}
+
+function carregarArte() {
+  document.getElementById('arte-input').click();
+}
+
+function handleArteInput(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  ev.target.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const p = JSON.parse(e.target.result);
+      if (!p.codeType || !Array.isArray(p.elements)) throw new Error('Arquivo inválido ou corrompido.');
+      if (!confirm(`Carregar "${file.name}"?\nO canvas atual será substituído.`)) return;
+      saveHistory();
+
+      // Tipo
+      codeType = p.codeType;
+      window.codeType = codeType;
+      const isQR = codeType === 'qr';
+      document.getElementById('type-badge').textContent = isQR ? 'QR Code' : 'Código de Barras';
+      document.getElementById('btn-code-ico').textContent = isQR ? '📱' : '🔢';
+      document.getElementById('btn-code-lbl').textContent = isQR ? 'QR Code' : 'Código de Barras';
+      document.getElementById('sec-documento').style.display = isQR ? 'block' : 'none';
+      document.getElementById('sec-prefixo').style.display   = isQR ? 'none'  : 'block';
+
+      // Canvas
+      elements  = JSON.parse(JSON.stringify(p.elements));
+      idCounter = elements.reduce((m, el) => Math.max(m, el.id), 0);
+      document.getElementById('cv-w').value = p.canvasW || 400;
+      document.getElementById('cv-h').value = p.canvasH || 600;
+
+      // Fundo
+      if (p.templateDataURL) {
+        templateDataURL = p.templateDataURL;
+        templateFile    = null;
+        bgMode = 'img';
+        setBgTab('img');
+        const bg = document.getElementById('canvas-bg');
+        bg.style.backgroundImage  = `url(${templateDataURL})`;
+        bg.style.backgroundSize   = '100% 100%';
+        bg.style.backgroundColor  = '';
+        document.getElementById('template-info').style.display   = 'block';
+        document.getElementById('template-info').textContent     = 'Imagem carregada';
+        document.getElementById('btn-remover-img').style.display = 'flex';
+        document.getElementById('bg-img-tools').style.display    = 'flex';
+      } else {
+        templateDataURL = null; templateFile = null;
+        bgColor = p.bgColor || '#ffffff';
+        document.getElementById('bg-color').value = bgColor;
+        setBgTab('cor');
+        applyBgColor(bgColor);
+      }
+
+      // Config sistema
+      if (p.configSistema) {
+        configSistema = { ...configSistema, ...p.configSistema };
+        localStorage.setItem('configSistema', JSON.stringify(configSistema));
+      }
+
+      selectedId = null;
+      resizeCanvas(); renderAll(); showProps(null);
+      toast('✅ Arte carregada com sucesso!');
+    } catch (err) {
+      alert('Erro ao carregar arte:\n' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── Ajustes do sistema ────────────────────────────────────────────
+let configSistema = JSON.parse(localStorage.getItem('configSistema') || 'null') || {
+  qr_correcao: 'M',
+  qr_cor_modulo: '#000000',
+  qr_fundo: '#ffffff',
+  bc_cor_modulo: '#000000',
+  bc_fundo: '#ffffff',
+};
+
+function abrirConfigs() {
+  document.getElementById('cfg-qr-sec').style.display = codeType === 'qr' ? 'block' : 'none';
+  document.getElementById('cfg-bc-sec').style.display = codeType === 'barcode' ? 'block' : 'none';
+  document.getElementById('cfg-qr-correcao').value = configSistema.qr_correcao;
+  document.getElementById('cfg-qr-cor').value = configSistema.qr_cor_modulo;
+  document.getElementById('cfg-qr-hex').textContent = configSistema.qr_cor_modulo;
+  document.getElementById('cfg-qr-fundo').value = configSistema.qr_fundo;
+  document.getElementById('cfg-bc-cor').value = configSistema.bc_cor_modulo;
+  document.getElementById('cfg-bc-hex').textContent = configSistema.bc_cor_modulo;
+  document.getElementById('cfg-bc-fundo').value = configSistema.bc_fundo;
+  _syncCfgPresets();
+  document.getElementById('modal-config').style.display = 'flex';
+}
+
+function aplicarConfigs() {
+  configSistema.qr_correcao   = document.getElementById('cfg-qr-correcao').value;
+  configSistema.qr_fundo      = document.getElementById('cfg-qr-fundo').value;
+  configSistema.bc_fundo      = document.getElementById('cfg-bc-fundo').value;
+  localStorage.setItem('configSistema', JSON.stringify(configSistema));
+  closeModal('modal-config');
+  renderAll();
+  toast('✅ Ajustes aplicados!');
+}
+
+function setCfgQrCor(val) {
+  configSistema.qr_cor_modulo = val;
+  document.getElementById('cfg-qr-cor').value = val;
+  document.getElementById('cfg-qr-hex').textContent = val;
+  _syncCfgPresets();
+}
+
+function setCfgBcCor(val) {
+  configSistema.bc_cor_modulo = val;
+  document.getElementById('cfg-bc-cor').value = val;
+  document.getElementById('cfg-bc-hex').textContent = val;
+  _syncCfgPresets();
+}
+
+function _syncCfgPresets() {
+  const qc = configSistema.qr_cor_modulo.toLowerCase();
+  document.getElementById('cfg-qp').classList.toggle('ativo', qc === '#000000');
+  document.getElementById('cfg-qb').classList.toggle('ativo', qc === '#ffffff');
+  const bc = configSistema.bc_cor_modulo.toLowerCase();
+  document.getElementById('cfg-bp').classList.toggle('ativo', bc === '#000000');
+  document.getElementById('cfg-bb').classList.toggle('ativo', bc === '#ffffff');
+}
+
+// ── Apagar área / Recorte de imagem ──────────────────────────────
+let _editMode        = 'apagar';  // 'apagar' | 'recortar'
+let _apagarWork      = null;
+let _apagarScale     = 1;
+let _apagarSel       = null;
+let _apagarSelecting = false;
+let _apagarOrigin    = null;
+let _apagarCount     = 0;
+
+function _abrirModalEdicao(mode) {
+  const el = getEl(selectedId);
+  if (!el || el.type !== 'logo' || !el.src) { toast('Selecione um elemento de imagem.'); return; }
+  _editMode = mode;
+  _apagarSel = null; _apagarCount = 0;
+  _btnApagar(false);
+
+  // Adaptar UI ao modo
+  const isApagar = mode === 'apagar';
+  document.getElementById('apagar-modal-titulo').textContent = isApagar
+    ? '🧹 Apagar área da imagem' : '✂️ Recorte de imagem';
+  document.getElementById('apagar-modal-desc').textContent = isApagar
+    ? 'Arraste para selecionar a área a apagar. A área ficará transparente.'
+    : 'Arraste para selecionar a região que quer MANTER. O restante será descartado.';
+  document.getElementById('apagar-hint').textContent = isApagar
+    ? 'Clique e arraste sobre a imagem para selecionar uma área.'
+    : 'Clique e arraste para marcar a região que ficará na imagem.';
+  document.getElementById('apagar-btn-ok').style.display       = isApagar ? '' : 'none';
+  document.getElementById('apagar-btn-concluir').style.display = isApagar ? '' : 'none';
+  document.getElementById('apagar-btn-recortar').style.display = isApagar ? 'none' : '';
+
+  _bindApagarCanvas(); // garante bind independente de qual botão abriu o modal
+  document.getElementById('modal-apagar-area').style.display = 'flex';
+
+  const img = new Image();
+  img.onload = () => {
+    // Canvas de trabalho no tamanho REAL da imagem
+    _apagarWork         = document.createElement('canvas');
+    _apagarWork.width   = img.naturalWidth;
+    _apagarWork.height  = img.naturalHeight;
+    _apagarWork.getContext('2d').drawImage(img, 0, 0);
+
+    // Canvas de exibição escalado para caber no modal
+    const maxW = Math.min(img.naturalWidth,  540);
+    const maxH = Math.min(img.naturalHeight, 380);
+    _apagarScale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+
+    const c = document.getElementById('apagar-canvas');
+    c.width  = Math.round(img.naturalWidth  * _apagarScale);
+    c.height = Math.round(img.naturalHeight * _apagarScale);
+    _apagarRedraw();
+  };
+  img.src = el.src;
+}
+
+function openApagarModal()  { _abrirModalEdicao('apagar');   }
+function openRecorteModal() { _abrirModalEdicao('recortar'); }
+
+function fecharApagarModal() {
+  document.getElementById('modal-apagar-area').style.display = 'none';
+  _apagarWork = null; _apagarSel = null;
+}
+
+function concluirApagarModal() {
+  const el = getEl(selectedId);
+  if (!el || !_apagarWork) { fecharApagarModal(); return; }
+  saveHistory();
+  el.src = _apagarWork.toDataURL('image/png');
+  reRender(el.id);
+  fecharApagarModal();
+  toast(`✅ ${_apagarCount} área(s) apagada(s)!`);
+}
+
+function apagarLimparSel() {
+  _apagarSel = null;
+  _btnApagar(false);
+  document.getElementById('apagar-hint').textContent = 'Seleção limpa. Clique e arraste para selecionar outra área.';
+  _apagarRedraw();
+}
+
+function _btnApagar(on) {
+  document.getElementById('apagar-btn-ok').disabled      = !on;
+  document.getElementById('apagar-btn-recortar').disabled = !on;
+}
+
+// Redesenha o canvas de exibição a partir do canvas de trabalho (síncrono, sem async)
+function _apagarRedraw() {
+  if (!_apagarWork) return;
+  const c   = document.getElementById('apagar-canvas');
+  const ctx = c.getContext('2d');
+
+  // Fundo xadrez → indica regiões transparentes
+  const cs = 10;
+  for (let y = 0; y < c.height; y += cs)
+    for (let x = 0; x < c.width; x += cs) {
+      ctx.fillStyle = ((x / cs + y / cs) % 2 === 0) ? '#dedede' : '#f5f5f5';
+      ctx.fillRect(x, y, cs, cs);
+    }
+
+  // Imagem acumulada (com todas as remoções já feitas)
+  ctx.drawImage(_apagarWork, 0, 0, c.width, c.height);
+
+  // Seleção atual
+  if (_apagarSel && (_apagarSel.w > 0 || _apagarSel.h > 0)) {
+    ctx.fillStyle   = 'rgba(229,57,53,.22)';
+    ctx.fillRect(_apagarSel.x, _apagarSel.y, _apagarSel.w, _apagarSel.h);
+    ctx.strokeStyle = '#e53935';
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([5, 3]);
+    ctx.strokeRect(_apagarSel.x, _apagarSel.y, _apagarSel.w, _apagarSel.h);
+    ctx.setLineDash([]);
+  }
+}
+
+// Eventos do canvas — bind feito uma única vez, chamado de _abrirModalEdicao
+let _apagarCanvasBound = false;
+
+function _bindApagarCanvas() {
+  if (_apagarCanvasBound) return;
+  const c = document.getElementById('apagar-canvas');
+  if (!c) return;
+
+  c.addEventListener('mousedown', e => {
+    if (!_apagarWork) return;
+    const r = c.getBoundingClientRect();
+    _apagarSelecting = true;
+    _apagarOrigin = { x: e.clientX - r.left, y: e.clientY - r.top };
+    _apagarSel    = { x: _apagarOrigin.x, y: _apagarOrigin.y, w: 0, h: 0 };
+    _btnApagar(false);
+  });
+
+  c.addEventListener('mousemove', e => {
+    if (!_apagarSelecting || !_apagarWork) return;
+    const r  = c.getBoundingClientRect();
+    const cx = e.clientX - r.left;
+    const cy = e.clientY - r.top;
+    _apagarSel = {
+      x: Math.min(_apagarOrigin.x, cx),
+      y: Math.min(_apagarOrigin.y, cy),
+      w: Math.abs(cx - _apagarOrigin.x),
+      h: Math.abs(cy - _apagarOrigin.y),
+    };
+    _apagarRedraw();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!_apagarSelecting) return;
+    _apagarSelecting = false;
+    const hasArea = _apagarSel && _apagarSel.w >= 1 && _apagarSel.h >= 1;
+    _btnApagar(hasArea);
+    const dim = hasArea
+      ? `${Math.round(_apagarSel.w / _apagarScale)} × ${Math.round(_apagarSel.h / _apagarScale)} px`
+      : '';
+    document.getElementById('apagar-hint').textContent = hasArea
+      ? (_editMode === 'recortar'
+          ? `Região selecionada: ${dim} — clique "Aplicar recorte" para manter apenas esta área.`
+          : `Área: ${dim} — clique "Apagar seleção" para remover.`)
+      : 'Clique e arraste para selecionar.';
+  });
+
+  _apagarCanvasBound = true;
+}
+
+function aplicarApagarArea() {
+  if (!_apagarSel || !_apagarWork || _apagarSel.w < 1 || _apagarSel.h < 1) return;
+
+  // Converte coords de exibição → coords reais
+  const rx = Math.round(_apagarSel.x / _apagarScale);
+  const ry = Math.round(_apagarSel.y / _apagarScale);
+  const rw = Math.max(1, Math.round(_apagarSel.w / _apagarScale));
+  const rh = Math.max(1, Math.round(_apagarSel.h / _apagarScale));
+
+  // Apaga direto no canvas de trabalho (sem criar nova Image())
+  _apagarWork.getContext('2d').clearRect(rx, ry, rw, rh);
+  _apagarCount++;
+
+  // Limpa seleção e atualiza display — modal FICA ABERTO
+  _apagarSel = null;
+  _btnApagar(false);
+  document.getElementById('apagar-hint').textContent =
+    `✅ Área ${_apagarCount} apagada. Selecione outra área ou clique em "Concluir".`;
+  _apagarRedraw();
+}
+
+function aplicarRecorteArea() {
+  if (!_apagarSel || !_apagarWork || _apagarSel.w < 1 || _apagarSel.h < 1) return;
+  const el = getEl(selectedId);
+  if (!el) return;
+
+  // Converte coords de exibição → coords reais da imagem
+  const rx = Math.round(_apagarSel.x / _apagarScale);
+  const ry = Math.round(_apagarSel.y / _apagarScale);
+  const rw = Math.max(1, Math.round(_apagarSel.w / _apagarScale));
+  const rh = Math.max(1, Math.round(_apagarSel.h / _apagarScale));
+
+  // Novo canvas com APENAS a região selecionada
+  const out = document.createElement('canvas');
+  out.width  = rw;
+  out.height = rh;
+  out.getContext('2d').drawImage(_apagarWork, rx, ry, rw, rh, 0, 0, rw, rh);
+
+  // Mantém a área visual do elemento, ajusta apenas a proporção para o recorte
+  const cropAspect = rw / rh;
+  const areaAtual  = el.w * el.h;
+  const novoH = Math.max(20, Math.round(Math.sqrt(areaAtual / cropAspect)));
+  const novoW = Math.max(20, Math.round(novoH * cropAspect));
+
+  saveHistory();
+  el.src = out.toDataURL('image/png');
+  el.w   = novoW;
+  el.h   = novoH;
+  reRender(el.id);
+  showProps(el.id);
+  fecharApagarModal();
+  toast(`✅ Recorte aplicado! (${rw}×${rh}px)`);
+}
+
+// ── Crop (Cropper.js) ────────────────────────────────────────────
+let cropTarget = null;
+let cropperInstance = null;
+
+function openCropModal(target) {
+  cropTarget = target;
+  let src = target === 'bg' ? templateDataURL : (() => { const el = getEl(selectedId); return el ? el.src : null; })();
+  if (!src) { toast('Nenhuma imagem carregada.'); return; }
+  document.getElementById('modal-crop').style.display = 'flex';
+  const img = document.getElementById('crop-img');
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  img.onload = () => {
+    cropperInstance = new Cropper(img, { viewMode:1, autoCropArea:0.9, responsive:true, background:false });
+  };
+  img.src = src;
+}
+
+function fecharCropModal() {
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  document.getElementById('modal-crop').style.display = 'none';
+}
+
+function aplicarCrop() {
+  if (!cropperInstance) return;
+  const canvas = cropperInstance.getCroppedCanvas();
+  if (!canvas) return;
+  canvas.toBlob(blob => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      saveHistory();
+      if (cropTarget === 'bg') {
+        templateDataURL = e.target.result;
+        const bg = document.getElementById('canvas-bg');
+        bg.style.backgroundImage = `url(${templateDataURL})`;
+        bg.style.backgroundSize = '100% 100%';
+        templateFile = new File([blob], 'template_temp.png', { type:'image/png' });
+        const info = new Image();
+        info.onload = () => { document.getElementById('template-info').textContent = `Imagem: ${info.width}×${info.height}px`; };
+        info.src = templateDataURL;
+      } else {
+        const el = getEl(selectedId);
+        if (el && el.type === 'logo') { el.src = e.target.result; reRender(el.id); }
+      }
+      toast('Recorte aplicado!');
+    };
+    reader.readAsDataURL(blob);
+    fecharCropModal();
+  }, 'image/png');
+}
+
+// ── Remoção de fundo ─────────────────────────────────────────────
+let fundoTarget = null;
+
+function toggleFundoMenu(target) {
+  const menu = document.getElementById(`fundo-menu-${target}`);
+  if (!menu) return;
+  const visible = menu.style.display !== 'none';
+  document.querySelectorAll('.fundo-menu').forEach(m => m.style.display = 'none');
+  if (!visible) menu.style.display = 'block';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.fundo-wrap')) {
+    document.querySelectorAll('.fundo-menu').forEach(m => m.style.display = 'none');
+  }
+});
+
+function abrirRemoverCor(target) {
+  fundoTarget = target;
+  document.querySelectorAll('.fundo-menu').forEach(m => m.style.display = 'none');
+  document.getElementById('modal-remover-cor').style.display = 'flex';
+}
+
+async function executarRemoverFundoCor() {
+  const cor = document.getElementById('rc-cor').value;
+  const tol = document.getElementById('rc-tolerancia').value;
+  const blob = await _imagemParaBlob(fundoTarget);
+  if (!blob) return;
+  const btn = document.getElementById('rc-btn');
+  const spin = document.getElementById('rc-spinner');
+  btn.disabled = true; spin.style.display = 'inline';
+  try {
+    const fd = new FormData();
+    fd.append('imagem', blob, 'img.png');
+    fd.append('cor', cor);
+    fd.append('tolerancia', tol);
+    const r = await fetch('/remover-fundo-cor', { method:'POST', body:fd });
+    if (!r.ok) throw new Error((await r.json()).detail || await r.text());
+    const rb = await r.blob();
+    await _aplicarResultado(fundoTarget, rb);
+    closeModal('modal-remover-cor');
+    toast('Fundo removido!');
+  } catch(e) { alert('Erro: ' + e.message); }
+  finally { btn.disabled = false; spin.style.display = 'none'; }
+}
+
+async function removerFundoIA(target) {
+  fundoTarget = target;
+  document.querySelectorAll('.fundo-menu').forEach(m => m.style.display = 'none');
+  const blob = await _imagemParaBlob(target);
+  if (!blob) return;
+  toast('🤖 Processando com IA... aguarde');
+  try {
+    const fd = new FormData();
+    fd.append('imagem', blob, 'img.png');
+    const r = await fetch('/remover-fundo-ia', { method:'POST', body:fd });
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.json()).detail; } catch { detail = await r.text(); }
+      if (detail === 'REMBG_NAO_INSTALADO') {
+        alert('rembg não está instalado.\nExecute no terminal:\n\n  pip install rembg\n\ne reinicie o servidor.');
+      } else {
+        alert('Erro IA: ' + detail);
+      }
+      return;
+    }
+    const rb = await r.blob();
+    await _aplicarResultado(target, rb);
+    toast('✅ Fundo removido com IA!');
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+async function _imagemParaBlob(target) {
+  const src = target === 'bg' ? templateDataURL : (() => { const el = getEl(selectedId); return el ? el.src : null; })();
+  if (!src) { toast('Nenhuma imagem disponível.'); return null; }
+  const res = await fetch(src);
+  return await res.blob();
+}
+
+async function _aplicarResultado(target, blob) {
+  const dataURL = await new Promise(res => {
+    const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(blob);
+  });
+  saveHistory();
+  if (target === 'bg') {
+    templateDataURL = dataURL;
+    const bg = document.getElementById('canvas-bg');
+    bg.style.backgroundImage = `url(${dataURL})`;
+    bg.style.backgroundSize = '100% 100%';
+    templateFile = new File([blob], 'template_temp.png', { type:'image/png' });
+  } else {
+    const el = getEl(selectedId);
+    if (el && el.type === 'logo') { el.src = dataURL; reRender(el.id); }
+  }
+}
+
+// ── Teclado: setas para navegar no preview
+document.addEventListener('keydown', e => {
+  if (document.getElementById('preview-overlay').style.display === 'none') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') pvNav(1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   pvNav(-1);
+  if (e.key === 'Escape') closePvOverlay();
+});
+
+// Teclado: Ctrl+Z / X / C / V + Delete
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement?.tagName;
+  const emInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  const ctrl = e.ctrlKey || e.metaKey;
+
+  if (ctrl && !e.shiftKey && e.key === 'z') {
+    if (emInput) return;
+    e.preventDefault(); undo(); return;
+  }
+  if (ctrl && !e.shiftKey && e.key === 'x') {
+    if (emInput) return;
+    e.preventDefault(); cutEl(); return;
+  }
+  if (ctrl && !e.shiftKey && e.key === 'c') {
+    if (emInput) return;
+    e.preventDefault(); copyEl(); return;
+  }
+  if (ctrl && !e.shiftKey && e.key === 'v') {
+    if (emInput) return;
+    e.preventDefault(); pasteEl(); return;
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !ctrl && !emInput) {
+    e.preventDefault(); deleteSelected();
+  }
+});
+
+// ── Gerar PDF ─────────────────────────────────────────────────────
+async function buildArquivoTemplate() {
+  if (templateFile) return templateFile;
+  const cvW = parseInt(document.getElementById('cv-w').value) || 400;
+  const cvH = parseInt(document.getElementById('cv-h').value) || 600;
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = cvW; tmpCanvas.height = cvH;
+  const ctx = tmpCanvas.getContext('2d');
+  ctx.fillStyle = bgColor || '#ffffff';
+  ctx.fillRect(0, 0, cvW, cvH);
+  const blob = await new Promise(res => tmpCanvas.toBlob(res, 'image/png'));
+  return new File([blob], 'template_temp.png', { type: 'image/png' });
+}
+
+// ── Qualidade ─────────────────────────────────────────────────────
+let qualidadePresets = {};
+let qualidadeSelecionada = 'alta';
+
+async function carregarPresets() {
+  try {
+    const r = await fetch('/qualidade-presets');
+    const d = await r.json();
+    qualidadePresets = d.presets;
+    qualidadeSelecionada = d.padrao;
+  } catch(e) {
+    // fallback se backend não responder
+    qualidadePresets = {
+      alta:   { dpi: 300, label: 'Alta (300 DPI)',   ram_pag: 6.7, lote_max: 70  },
+      media:  { dpi: 200, label: 'Média (200 DPI)',  ram_pag: 3.0, lote_max: 160 },
+      normal: { dpi: 150, label: 'Normal (150 DPI)', ram_pag: 1.7, lote_max: 290 },
+      baixa:  { dpi: 96,  label: 'Rápida (96 DPI)',  ram_pag: 0.7, lote_max: 700 },
+    };
+  }
+}
+
+function renderQualidadeBtns() {
+  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
+  const total = fim - ini + 1;
+  const wrap = document.getElementById('g-qualidade-btns');
+  if (!wrap) return;
+  // Fallback local caso o fetch ainda não tenha terminado
+  const presetFallback = {
+    alta:   { dpi:300, label:'Alta (300 DPI)',   ram_pag:6.7, lote_max:70  },
+    media:  { dpi:200, label:'Média (200 DPI)',  ram_pag:3.0, lote_max:160 },
+    normal: { dpi:150, label:'Normal (150 DPI)', ram_pag:1.7, lote_max:290 },
+    baixa:  { dpi:96,  label:'Rápida (96 DPI)',  ram_pag:0.7, lote_max:700 },
+  };
+  const presets = Object.keys(qualidadePresets).length > 0 ? qualidadePresets : presetFallback;
+  if (Object.keys(qualidadePresets).length === 0) qualidadePresets = presetFallback;
+  wrap.innerHTML = Object.entries(presets).map(([key, p]) => {
+    const lotes = total > p.lote_max ? Math.ceil(total / p.lote_max) : 1;
+    const loteTxt = lotes > 1 ? `<span style="color:var(--danger);font-size:10px"> → ${lotes} lotes</span>` : `<span style="color:var(--success,#2e7d32);font-size:10px"> → 1 lote ✓</span>`;
+    const ramTotal = (p.ram_pag * Math.min(total, p.lote_max)).toFixed(0);
+    const sel = key === qualidadeSelecionada;
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--surface)'};cursor:pointer;font-size:12px" onclick="selecionarQualidade('${key}')">
+      <input type="radio" name="g-qual" value="${key}" ${sel?'checked':''} style="accent-color:var(--accent)">
+      <div style="flex:1">
+        <div style="font-weight:500">${p.label}${loteTxt}</div>
+        <div style="color:var(--text2);font-size:11px">~${ramTotal}MB de RAM por lote · máx ${p.lote_max} por vez</div>
+      </div>
+    </label>`;
+  }).join('');
+}
+
+function selecionarQualidade(key) {
+  qualidadeSelecionada = key;
+  renderQualidadeBtns();
+  atualizarInfoGerar();
+}
+
+function atualizarInfoGerar() {
+  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
+  const total = fim - ini + 1;
+  const p = qualidadePresets[qualidadeSelecionada];
+  if (!p) return;
+  const lotes = Math.ceil(total / p.lote_max);
+  const info = document.getElementById('g-info');
+  if (!info) return;
+  if (lotes > 1) {
+    info.textContent = `${total} comandas → serão gerados ${lotes} PDFs separados de até ${p.lote_max} páginas cada.`;
+    info.style.background = '#fff3e0'; info.style.borderColor = '#f0a040';
+  } else {
+    info.textContent = `${total} comandas em 1 PDF — pronto para gerar!`;
+    info.style.background = ''; info.style.borderColor = '';
+  }
+}
+
+function gSincronizar() {
+  const isQR = codeType === 'qr';
+  const iniId = isQR ? 'g-ini'    : 'g-ini-bc';
+  const fimId = isQR ? 'g-fim'    : 'g-fim-bc';
+  const ini   = parseInt(document.getElementById(iniId)?.value) || 1;
+  const fim   = parseInt(document.getElementById(fimId)?.value) || 1;
+  const total = Math.max(0, fim - ini + 1);
+
+  // Espelha no painel esquerdo
+  document.getElementById('lote-ini').value = ini;
+  document.getElementById('lote-fim').value = fim;
+
+  if (isQR) {
+    const doc  = (document.getElementById('g-documento')?.value || '').trim();
+    const tipo = document.getElementById('g-tipo-doc')?.value || 'CNPJ';
+    document.getElementById('documento').value = doc;
+    document.getElementById('tipo-doc').value  = tipo;
+    const nums   = doc.replace(/\D/g, '');
+    const needed = tipo === 'CNPJ' ? 14 : 11;
+    const st     = document.getElementById('g-doc-status');
+    if (st) {
+      if (nums.length === needed) {
+        st.textContent = `✅ ${tipo} válido`; st.style.color = 'var(--success,#2e7d32)';
+      } else if (nums.length > 0) {
+        st.textContent = `${nums.length} de ${needed} dígitos`; st.style.color = 'var(--danger)';
+      } else {
+        st.textContent = `Informe os ${needed} dígitos do ${tipo}`; st.style.color = 'var(--text2)';
+      }
+    }
+    const res = document.getElementById('g-resumo');
+    if (res) res.textContent = total > 0 ? `${total} QR Code${total > 1 ? 's' : ''}` : '';
+  } else {
+    const prefixo = document.getElementById('g-prefixo')?.value || '/';
+    document.getElementById('bc-prefixo').value = prefixo;
+    const ex  = document.getElementById('g-bc-exemplo');
+    if (ex) ex.textContent = `Ex: ${prefixo}${String(ini).padStart(4,'0')} → ${prefixo}${String(fim).padStart(4,'0')}`;
+    const res = document.getElementById('g-resumo-bc');
+    if (res) res.textContent = total > 0 ? `${total} código${total > 1 ? 's' : ''}` : '';
+  }
+
+  renderQualidadeBtns();
+  atualizarInfoGerar();
+}
+
+function openGerarModal() {
+  if (!elements.length) { alert('Adicione elementos ao canvas antes de gerar.'); return; }
+  if (!validarDocumentoQR()) return;
+  document.getElementById('g-aceite').checked = false;
+
+  const isQR = codeType === 'qr';
+  document.getElementById('g-sec-qr').style.display = isQR ? 'block' : 'none';
+  document.getElementById('g-sec-bc').style.display = isQR ? 'none'  : 'block';
+
+  // Pré-preenche intervalo do painel esquerdo
+  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
+
+  if (isQR) {
+    document.getElementById('g-ini').value       = ini;
+    document.getElementById('g-fim').value       = fim;
+    document.getElementById('g-tipo-doc').value  = document.getElementById('tipo-doc').value  || 'CNPJ';
+    document.getElementById('g-documento').value = document.getElementById('documento').value  || '';
+  } else {
+    document.getElementById('g-ini-bc').value  = ini;
+    document.getElementById('g-fim-bc').value  = fim;
+    document.getElementById('g-prefixo').value = document.getElementById('bc-prefixo').value || '/';
+  }
+
+  gSincronizar();
+  document.getElementById('modal-gerar').style.display = 'flex';
+}
+
+async function gerarPDF() {
+  if (!document.getElementById('g-aceite').checked) { alert('Marque que já validou o layout no preview.'); return; }
+  if (!validarDocumentoQR()) return;
+  const isQR = codeType === 'qr';
+  const ini  = parseInt(document.getElementById(isQR ? 'g-ini' : 'g-ini-bc').value) || 1;
+  const fim  = parseInt(document.getElementById(isQR ? 'g-fim' : 'g-fim-bc').value) || 10;
+  if (fim < ini) { alert('O número final deve ser maior que o inicial.'); return; }
+  const total = fim - ini + 1;
+  const formato = document.getElementById('g-formato').value;
+  // Garante preset válido — usa fallback se carregarPresets não terminou
+  const presetFallback = { alta:{lote_max:70}, media:{lote_max:160}, normal:{lote_max:290}, baixa:{lote_max:700} };
+  const presets = Object.keys(qualidadePresets).length > 0 ? qualidadePresets : presetFallback;
+  const preset = presets[qualidadeSelecionada] || presets['alta'];
+  const limite = preset.lote_max;
+
+  closeModal('modal-gerar');
+
+  if (total > limite) {
+    mostrarSugestaoIntervalos(ini, fim, formato, limite);
+    return;
+  }
+
+  await executarGeracaoPDF(ini, fim, formato);
+}
+
+// ── Estado dos lotes ─────────────────────────────────────────────
+let ivIntervalos = [];   // [{ini, fim}]
+let ivFormato    = 'pdf';
+let ivDirHandle  = null; // FileSystemDirectoryHandle (Chrome/Edge)
+let ivBlobs      = [];   // acumula blobs para Firefox (ZIP)
+let ivProcessando = false;
+
+// Calcula pausa entre lotes baseado no tamanho e DPI
+function calcularPausa(totalPaginas, qualidade) {
+  const preset = qualidadePresets[qualidade] || { dpi: 300 };
+  const dpi = preset.dpi;
+  // Fórmula: base 2s + 0.05s por página + 1s por 100dpi acima de 96
+  const base = 2000;
+  const porPagina = totalPaginas * 50;
+  const porDPI = Math.max(0, (dpi - 96) / 100) * 1000;
+  return Math.round(base + porPagina + porDPI);
+}
+
+function ivSuportaDirPicker() {
+  return typeof window.showDirectoryPicker === 'function';
+}
+
+function mostrarSugestaoIntervalos(ini, fim, formato, limite) {
+  limite = limite || (qualidadePresets[qualidadeSelecionada]?.lote_max || 100);
+  ivFormato = formato;
+  ivIntervalos = [];
+  let cur = ini;
+  while (cur <= fim) {
+    const end = Math.min(cur + limite - 1, fim);
+    ivIntervalos.push({ ini: cur, fim: end, status: 'aguardando' });
+    cur = end + 1;
+  }
+
+  const total = fim - ini + 1;
+  const modo = ivSuportaDirPicker()
+    ? '📁 Os PDFs serão salvos direto na pasta que você escolher.'
+    : '🗜 Seu navegador não suporta seleção de pasta. Os PDFs serão baixados em um arquivo ZIP.';
+
+  const pausaMs = calcularPausa(limite, qualidadeSelecionada);
+  const pausaSeg = (pausaMs / 1000).toFixed(1);
+  const nLotes = ivIntervalos.length;
+
+  const linhas = ivIntervalos.map((iv, i) => {
+    const n = iv.fim - iv.ini + 1;
+    return `<div class="intervalo-item selecionado" id="iv-item-${i}" onclick="ivToggle(${i})">
+      <input type="checkbox" class="iv-check" id="iv-chk-${i}" checked onclick="event.stopPropagation();ivToggle(${i})">
+      <span class="iv-label">${iv.ini} a ${iv.fim} <span class="iv-count">(${n} comanda${n>1?'s':''})</span></span>
+      <span class="iv-status" id="iv-status-${i}" style="color:var(--text2)">⏳ Aguardando</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-intervalos-body').innerHTML = `
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.7;background:var(--surface2);border-radius:var(--radius);padding:8px 10px">
+      📦 <strong>${total} comandas</strong> → <strong>${nLotes} lotes</strong> de até ${limite} por vez<br>
+      ${modo}<br>
+      ⏱ Pausa automática de ~<strong>${pausaSeg}s</strong> entre lotes para liberar memória
+    </div>
+    <div id="iv-toolbar">
+      <button class="tb-btn" onclick="ivSelecionarTodos(true)">☑ Todos</button>
+      <button class="tb-btn" onclick="ivSelecionarTodos(false)">☐ Nenhum</button>
+      <button class="tb-btn" onclick="ivInverter()">⇄ Inverter</button>
+      <span style="flex:1"></span>
+      <span id="iv-sel-count" style="font-size:11px;color:var(--text2)">${nLotes} de ${nLotes} selecionados</span>
+      <button class="tb-btn primary" id="iv-gerar-btn" onclick="ivIniciarGeracao()" style="margin-left:6px">▶ Gerar selecionados</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto;padding-right:4px;margin-bottom:4px" id="iv-lista">${linhas}</div>
+    <div id="iv-progresso" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+      <div style="font-size:12px;font-weight:500;margin-bottom:6px" id="iv-prog-label">Iniciando...</div>
+      <div style="background:var(--border);border-radius:4px;height:8px;margin-bottom:6px;overflow:hidden">
+        <div id="iv-prog-bar" style="background:var(--accent);height:8px;border-radius:4px;width:0%;transition:width .4s"></div>
+      </div>
+      <div id="iv-pausa-info" style="font-size:11px;color:var(--text2);min-height:18px"></div>
+    </div>`;
+
+  document.getElementById('iv-lista').addEventListener('change', ivAtualizarContagem);
+  document.getElementById('modal-intervalos').style.display = 'flex';
+}
+
+function ivToggle(i) {
+  const chk = document.getElementById(`iv-chk-${i}`);
+  const item = document.getElementById(`iv-item-${i}`);
+  if (!chk || ivIntervalos[i].status !== 'aguardando') return;
+  chk.checked = !chk.checked;
+  item.classList.toggle('selecionado', chk.checked);
+}
+
+function ivSetCheck(i, val) {
+  const chk = document.getElementById(`iv-chk-${i}`);
+  const item = document.getElementById(`iv-item-${i}`);
+  if (!chk || ivIntervalos[i].status !== 'aguardando') return;
+  chk.checked = val;
+  item.classList.toggle('selecionado', val);
+}
+
+function ivSelecionarTodos(val) {
+  ivIntervalos.forEach((iv, i) => ivSetCheck(i, val));
+}
+
+function ivInverter() {
+  ivIntervalos.forEach((iv, i) => ivToggle(i));
+}
+
+async function ivIniciarGeracao() {
+  if (ivProcessando) return;
+  const selecionados = ivIntervalos
+    .map((iv, i) => ({ ...iv, idx: i }))
+    .filter((iv, i) => document.getElementById(`iv-chk-${i}`)?.checked && iv.status === 'aguardando');
+
+  if (!selecionados.length) { alert('Selecione pelo menos um lote.'); return; }
+
+  // Detectar modo: pasta (Chrome/Edge) ou ZIP (Firefox)
+  ivDirHandle = null;
+  ivBlobs = [];
+
+  if (ivSuportaDirPicker()) {
+    try {
+      ivDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch(e) {
+      if (e.name === 'AbortError') return; // usuário cancelou
+      // Fallback para download direto se der erro
+      ivDirHandle = null;
+    }
+  }
+
+  // Desabilitar botão e iniciar
+  document.getElementById('iv-gerar-btn').disabled = true;
+  document.getElementById('iv-progresso').style.display = 'block';
+  ivProcessando = true;
+
+  const pausaMs = calcularPausa(
+    Math.max(...selecionados.map(iv => iv.fim - iv.ini + 1)),
+    qualidadeSelecionada
+  );
+
+  let concluidos = 0;
+  const totalSel = selecionados.length;
+
+  for (let s = 0; s < selecionados.length; s++) {
+    const iv = selecionados[s];
+    const item  = document.getElementById(`iv-item-${iv.idx}`);
+    const status = document.getElementById(`iv-status-${iv.idx}`);
+    const chk   = document.getElementById(`iv-chk-${iv.idx}`);
+
+    // Marcar como processando
+    item.className = 'intervalo-item processando';
+    status.textContent = '⚙ Gerando...';
+    status.style.color = '#b45000';
+    if (chk) chk.disabled = true;
+
+    ivAtualizarProgresso(concluidos, totalSel, `Gerando lote ${s+1} de ${totalSel}: comandas ${iv.ini} a ${iv.fim}...`);
+
+    try {
+      const fd = new FormData();
+      fd.append('template', await buildArquivoTemplate());
+      fd.append('layout', JSON.stringify(buildLayout()));
+      fd.append('inicio', iv.ini);
+      fd.append('fim', iv.fim);
+      fd.append('formato', 'pdf'); // sempre PDF; ZIP é feito aqui se necessário
+      fd.append('qualidade', qualidadeSelecionada);
+
+      const r = await fetch('/gerar-pdf', { method:'POST', body:fd });
+      if (!r.ok) {
+        const t = await r.text();
+        let msg = t; try { msg = JSON.parse(t).detail; } catch(e2) {}
+        throw new Error(msg);
+      }
+
+      const blob = await r.blob();
+      const nomeArq = `comandas_${iv.ini}_a_${iv.fim}.pdf`;
+
+      if (ivDirHandle) {
+        // Chrome/Edge: salva direto na pasta
+        const fileHandle = await ivDirHandle.getFileHandle(nomeArq, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
+        // Firefox / fallback: acumula para ZIP ou download direto
+        ivBlobs.push({ nome: nomeArq, blob });
+        // Download direto como fallback imediato
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nomeArq; a.style.display = 'none';
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 3000);
+      }
+
+      // Sucesso
+      ivIntervalos[iv.idx].status = 'concluido';
+      item.className = 'intervalo-item concluido';
+      status.textContent = '✅ Salvo';
+      status.style.color = 'var(--success)';
+      concluidos++;
+      ivAtualizarProgresso(concluidos, totalSel, null);
+
+    } catch(e) {
+      ivIntervalos[iv.idx].status = 'erro';
+      item.className = 'intervalo-item erro';
+      status.textContent = '❌ Erro';
+      status.style.color = 'var(--danger)';
+      if (chk) chk.disabled = false;
+      document.getElementById('iv-prog-label').textContent = `❌ Erro no lote ${iv.ini}–${iv.fim}: ${e.message}`;
+      document.getElementById('iv-pausa-info').textContent = 'Corrija o erro e tente novamente os lotes com falha.';
+      // Continua para os próximos
+    }
+
+    // Pausa entre lotes (exceto no último)
+    if (s < selecionados.length - 1) {
+      await ivPausar(pausaMs, s + 1, totalSel);
+    }
+  }
+
+  ivProcessando = false;
+
+  const falhas = ivIntervalos.filter(iv => iv.status === 'erro').length;
+  if (concluidos === totalSel) {
+    ivAtualizarProgresso(totalSel, totalSel, null);
+    document.getElementById('iv-prog-bar').style.background = '#2e7d32';
+    const label = document.getElementById('iv-prog-label');
+    label.textContent = `✅ Todos os ${totalSel} lote${totalSel > 1 ? 's' : ''} gerado${totalSel > 1 ? 's' : ''} com sucesso!`;
+    label.style.cssText = 'font-size:17px;font-weight:700;color:#1b5e20;background:#e8f5e9;border:2px solid #a5d6a7;border-radius:10px;padding:14px 18px;text-align:center;margin-bottom:8px;line-height:1.3';
+    const info = document.getElementById('iv-pausa-info');
+    info.textContent = ivDirHandle ? '📁 Arquivos salvos na pasta selecionada.' : '⬇ Arquivos baixados pelo navegador.';
+    info.style.cssText = 'font-size:12px;color:#2e7d32;text-align:center;font-weight:500;min-height:18px';
+  } else {
+    document.getElementById('iv-prog-label').textContent =
+      `Concluído: ${concluidos} ✅  Erros: ${falhas} ❌`;
+  }
+  document.getElementById('iv-gerar-btn').disabled = false;
+}
+
+async function ivPausar(ms, loteAtual, totalLotes) {
+  const pausa = document.getElementById('iv-pausa-info');
+  if (!pausa) { await new Promise(res => setTimeout(res, ms)); return; }
+  const inicio = Date.now();
+  const fim2 = inicio + ms;
+  const tick = 200; // atualiza a cada 200ms
+  while (Date.now() < fim2) {
+    const restante = Math.max(0, fim2 - Date.now());
+    const seg = (restante / 1000).toFixed(1);
+    const pct = Math.round(((ms - restante) / ms) * 100);
+    pausa.innerHTML = `⏳ Liberando memória... <strong>${seg}s</strong> restantes antes do lote ${loteAtual + 1} de ${totalLotes} &nbsp;<span style="color:var(--accent)">(${pct}%)</span>`;
+    await new Promise(res => setTimeout(res, tick));
+  }
+  pausa.textContent = '';
+}
+
+function ivAtualizarContagem() {
+  const total = ivIntervalos.length;
+  const sel = ivIntervalos.filter((iv, i) => {
+    const chk = document.getElementById(`iv-chk-${i}`);
+    return chk && chk.checked;
+  }).length;
+  const el = document.getElementById('iv-sel-count');
+  if (el) el.textContent = `${sel} de ${total} selecionados`;
+}
+
+function ivAtualizarProgresso(concluidos, total, labelText) {
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+  document.getElementById('iv-prog-bar').style.width = pct + '%';
+  if (labelText) document.getElementById('iv-prog-label').textContent = labelText;
+}
+
+async function executarGeracaoPDF(ini, fim, formato) {
+  // Barra de progresso simples para lotes dentro do limite
+  showProgressBar(true, `Gerando ${fim - ini + 1} comandas...`);
+  try {
+    const fd = new FormData();
+    fd.append('template', await buildArquivoTemplate());
+    fd.append('layout', JSON.stringify(buildLayout()));
+    fd.append('inicio', ini);
+    fd.append('fim', fim);
+    fd.append('formato', formato);
+    fd.append('qualidade', qualidadeSelecionada);
+    const r = await fetch('/gerar-pdf', { method:'POST', body:fd });
+    if (!r.ok) {
+      const t = await r.text();
+      let msg = t; try { msg = JSON.parse(t).detail; } catch(e) {}
+      if (msg && msg.startsWith('LIMITE_EXCEDIDO')) {
+        const parts = msg.split(':');
+        const lim = parseInt(parts[2]) || 100;
+        showProgressBar(false);
+        mostrarSugestaoIntervalos(ini, fim, formato, lim);
+        return;
+      }
+      throw new Error(msg);
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `comandas_${ini}_a_${fim}.${formato}`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+    showProgressBar(false);
+    toast(`✅ PDF gerado! ${fim - ini + 1} comandas baixadas.`);
+  } catch(e) {
+    showProgressBar(false);
+    alert('Erro ao gerar PDF:\n' + e.message);
+  }
+}
+
+function showProgressBar(show, label) {
+  let bar = document.getElementById('global-progress');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'global-progress';
+    bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 20px;z-index:500;display:flex;align-items:center;gap:12px;font-size:13px';
+    bar.innerHTML = `<span id="gp-label" style="color:var(--text2)"></span><div style="flex:1;background:var(--border);border-radius:4px;height:6px"><div id="gp-bar" style="background:var(--accent);height:6px;border-radius:4px;width:0%;animation:gp-anim 1.5s ease-in-out infinite alternate"></div></div>`;
+    document.body.appendChild(bar);
+    const style = document.createElement('style');
+    style.textContent = '@keyframes gp-anim{from{width:15%}to{width:85%}}';
+    document.head.appendChild(style);
+  }
+  bar.style.display = show ? 'flex' : 'none';
+  if (label) document.getElementById('gp-label').textContent = label;
+}
+
+function buildLayout() {
+  return {
+    tipo_codigo: codeType,
+    elementos: elements,
+    documento: codeType === 'qr' ? document.getElementById('documento').value : '',
+    tipo_doc: document.getElementById('tipo-doc').value,
+    bc_prefixo: codeType === 'barcode' ? (document.getElementById('bc-prefixo').value || '/') : '/',
+    canvas_w: parseInt(document.getElementById('cv-w').value) || 400,
+    canvas_h: parseInt(document.getElementById('cv-h').value) || 600,
+    fonte_path: document.getElementById('fonte-sel').value,
+    bg_color: bgColor || '#ffffff',
+    bg_mode: bgMode,
+    config_sistema: configSistema,
+  };
+}
+
+// ── Utils ─────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+</body>
+</html>

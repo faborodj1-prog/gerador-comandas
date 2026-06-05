@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: gerador-comandas
+    runtime: python
+    buildCommand: bash build.sh
+    startCommand: python main.py
+    envVars:
+      - key: RENDER
+        value: "true"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+    plan: free
