@@ -1042,10 +1042,20 @@
     <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;cursor:pointer">
       <input type="checkbox" id="g-aceite"> Já validei o layout no preview.
     </label>
+
+    <!-- Progresso inline (igual ao QR Imagens) -->
+    <div id="pdf-progresso" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+      <div style="font-size:12px;font-weight:500;margin-bottom:5px" id="pdf-prog-label">Iniciando...</div>
+      <div style="background:var(--border);border-radius:4px;height:8px;margin-bottom:5px;overflow:hidden">
+        <div id="pdf-prog-bar" style="background:var(--accent);height:8px;border-radius:4px;width:0%;transition:width .5s"></div>
+      </div>
+      <div id="pdf-prog-detalhe" style="font-size:11px;color:var(--text2);min-height:16px"></div>
+    </div>
+
     <div class="modal-btns">
-      <button class="tb-btn" onclick="closeModal('modal-gerar')">Cancelar</button>
-      <button class="tb-btn" onclick="gerarAmostra()" title="Gera 1 PDF com a primeira comanda do intervalo">📄 1 PDF amostra</button>
-      <button class="tb-btn primary" onclick="gerarPDF()">⬇ Gerar lote</button>
+      <button class="tb-btn" id="pdf-btn-cancelar" onclick="closeModal('modal-gerar')">Cancelar</button>
+      <button class="tb-btn" id="pdf-btn-amostra" onclick="gerarAmostra()" title="Gera 1 PDF com a primeira comanda do intervalo">📄 1 PDF amostra</button>
+      <button class="tb-btn primary" id="pdf-btn-gerar" onclick="gerarPDF()">⬇ Gerar lote</button>
     </div>
   </div>
 </div>
@@ -3331,28 +3341,130 @@ function openGerarModal() {
   if (campo) campo.value = sugerido;
   if (badge) badge.textContent = sugerido;
   renderQualidadeBtns(); atualizarInfoGerar();
+  // Resetar progresso
+  document.getElementById('pdf-progresso').style.display = 'none';
+  document.getElementById('pdf-prog-bar').style.width = '0%';
+  document.getElementById('pdf-prog-bar').style.background = 'var(--accent)';
+  document.getElementById('pdf-prog-label').textContent = '';
+  document.getElementById('pdf-prog-label').style.cssText = 'font-size:12px;font-weight:500;margin-bottom:5px';
+  document.getElementById('pdf-prog-detalhe').textContent = '';
+  const btnCancel = document.getElementById('pdf-btn-cancelar');
+  if (btnCancel) { btnCancel.textContent = 'Cancelar'; btnCancel.onclick = () => closeModal('modal-gerar'); btnCancel.disabled = false; }
+  const btnGerar = document.getElementById('pdf-btn-gerar');
+  if (btnGerar)  { btnGerar.disabled = false; btnGerar.textContent = '⬇ Gerar lote'; }
+  const btnAmostra = document.getElementById('pdf-btn-amostra');
+  if (btnAmostra) btnAmostra.disabled = false;
   document.getElementById('modal-gerar').style.display = 'flex';
+}
+
+let pdfCancelado = false;
+
+function _pdfProgresso(concluidos, total, label, detalhe) {
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+  document.getElementById('pdf-prog-bar').style.width = pct + '%';
+  if (label   !== undefined) document.getElementById('pdf-prog-label').textContent   = label;
+  if (detalhe !== undefined) document.getElementById('pdf-prog-detalhe').textContent = detalhe;
 }
 
 async function gerarPDF() {
   if (!document.getElementById('g-aceite').checked) { alert('Marque que já validou o layout no preview.'); return; }
   if (!validarDocumentoQR()) return;
-  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
-  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
+  const ini    = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim    = parseInt(document.getElementById('lote-fim').value) || 10;
   if (fim < ini) { alert('O número final deve ser maior que o inicial.'); return; }
-  const total = fim - ini + 1;
+  const total  = fim - ini + 1;
+  const limite = _getLoteMax();
   const formato = document.getElementById('g-formato').value;
-  // Garante preset válido — usa fallback se carregarPresets não terminou
-  const limite = _getLoteMax(); // usa valor customizado do campo "por lote"
 
-  closeModal('modal-gerar');
+  // Montar lotes
+  const lotes = [];
+  for (let s = ini; s <= fim; s += limite)
+    lotes.push({ ini: s, fim: Math.min(s + limite - 1, fim) });
 
-  if (total > limite) {
-    mostrarSugestaoIntervalos(ini, fim, formato, limite);
-    return;
+  // Solicitar pasta (Chrome/Edge)
+  let dirHandle = null;
+  if (lotes.length > 1 && typeof window.showDirectoryPicker === 'function') {
+    try { dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' }); }
+    catch(e) { if (e.name === 'AbortError') return; dirHandle = null; }
   }
 
-  await executarGeracaoPDF(ini, fim, formato);
+  // Mostrar progresso inline
+  pdfCancelado = false;
+  const btnGerar  = document.getElementById('pdf-btn-gerar');
+  const btnCancel = document.getElementById('pdf-btn-cancelar');
+  const btnAmostra = document.getElementById('pdf-btn-amostra');
+  btnGerar.disabled = true; btnGerar.textContent = '⏳ Gerando...';
+  btnAmostra.disabled = true;
+  btnCancel.textContent = '⏹ Cancelar';
+  btnCancel.onclick = () => { pdfCancelado = true; btnCancel.disabled = true; btnCancel.textContent = '⏹ Cancelando...'; };
+
+  const progEl = document.getElementById('pdf-progresso');
+  progEl.style.display = 'block';
+  document.getElementById('pdf-prog-bar').style.background = 'var(--accent)';
+  _pdfProgresso(0, lotes.length, `Iniciando geração de ${total} comanda(s)...`, '');
+
+  let concluidos = 0, erros = 0;
+
+  for (let i = 0; i < lotes.length; i++) {
+    if (pdfCancelado) {
+      _pdfProgresso(i, lotes.length, '⏹ Geração cancelada.', `${concluidos} de ${lotes.length} lotes concluídos.`);
+      break;
+    }
+    const lote = lotes[i];
+    _pdfProgresso(i, lotes.length,
+      `Gerando lote ${i+1} de ${lotes.length}: comandas ${lote.ini} a ${lote.fim}...`,
+      `${i} de ${lotes.length} lotes · ${concluidos * limite} de ${total} arquivos`
+    );
+    try {
+      const fd = new FormData();
+      fd.append('template', await buildArquivoTemplate());
+      fd.append('layout',   JSON.stringify(buildLayout()));
+      fd.append('inicio',   lote.ini);
+      fd.append('fim',      lote.fim);
+      fd.append('formato',  'pdf');
+      fd.append('qualidade', qualidadeSelecionada);
+      const r = await fetch('/gerar-pdf', { method: 'POST', body: fd });
+      if (!r.ok) { const t = await r.text(); let m=t; try{m=JSON.parse(t).detail;}catch{}; throw new Error(m); }
+      const blob = await r.blob();
+      const nome = lotes.length > 1 ? `comandas_${lote.ini}_a_${lote.fim}.pdf` : `comandas_${ini}_a_${fim}.pdf`;
+      if (dirHandle) {
+        const fh = await dirHandle.getFileHandle(nome, { create: true });
+        const wr = await fh.createWritable();
+        await wr.write(blob); await wr.close();
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download=nome; a.style.display='none';
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 3000);
+      }
+      concluidos++;
+      _pdfProgresso(i+1, lotes.length, null, `${i+1} de ${lotes.length} lotes · ${Math.min(concluidos*limite, total)} de ${total} arquivos`);
+      // Pausa entre lotes
+      if (i < lotes.length - 1 && !pdfCancelado) await new Promise(r => setTimeout(r, 5000));
+    } catch(e) {
+      erros++;
+      _pdfProgresso(i+1, lotes.length, `❌ Erro no lote ${i+1}: ${e.message}`, null);
+    }
+  }
+
+  // Resultado final
+  if (!pdfCancelado) {
+    if (erros === 0) {
+      const label = document.getElementById('pdf-prog-label');
+      label.textContent = `✅ Todos os ${lotes.length} lote(s) gerados com sucesso!`;
+      label.style.cssText = 'font-size:15px;font-weight:700;color:#1b5e20;background:#e8f5e9;border:2px solid #a5d6a7;border-radius:8px;padding:10px 14px;text-align:center;margin-bottom:6px';
+      document.getElementById('pdf-prog-bar').style.background = '#2e7d32';
+      document.getElementById('pdf-prog-detalhe').textContent = `${total} comanda(s) · ${lotes.length} PDF(s)` + (dirHandle ? ' salvos na pasta.' : ' baixados.');
+    } else {
+      document.getElementById('pdf-prog-label').textContent = `Concluído com ${erros} erro(s). Tente novamente.`;
+    }
+  }
+
+  btnGerar.disabled = false; btnGerar.textContent = '⬇ Gerar lote';
+  btnAmostra.disabled = false;
+  btnCancel.textContent = 'Fechar';
+  btnCancel.onclick = () => closeModal('modal-gerar');
+  btnCancel.disabled = false;
 }
 
 // ── Estado dos lotes ─────────────────────────────────────────────
