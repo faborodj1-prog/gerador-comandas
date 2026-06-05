@@ -2050,10 +2050,8 @@ async function previewFonte(caminho) {
 async function gerarAmostra() {
   if (!elements.length) { alert('Adicione elementos ao canvas.'); return; }
   if (!validarDocumentoQR()) return;
-  const isQR = codeType === 'qr';
-  const ini  = parseInt(document.getElementById(isQR ? 'g-ini' : 'g-ini-bc').value) || 1;
+  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
   showProgressBar(true, '📄 Gerando PDF de amostra...');
-  closeModal('modal-gerar');
   try {
     const fd = new FormData();
     fd.append('template', await buildArquivoTemplate());

@@ -646,6 +646,70 @@ def gerar_barcode(numero, prefixo, largura, altura, corte_v, corte_e, corte_d, r
     return img
 
 
+def colar_texto_quebrado(draw, imagem, texto_str, fonte, x, y, w, h, cor, rotacao, align="center"):
+    """Renderiza texto com quebra automática de linha, centrado no elemento."""
+    if not texto_str:
+        return
+
+    # ── Quebrar em linhas que caibam na largura ──────────────────
+    palavras = texto_str.split()
+    linhas = []
+    linha_atual = []
+
+    for palavra in palavras:
+        teste = " ".join(linha_atual + [palavra])
+        try:
+            bx = draw.textbbox((0, 0), teste, font=fonte)
+            largura_teste = bx[2] - bx[0]
+        except Exception:
+            largura_teste = len(teste) * (fonte.size if hasattr(fonte, "size") else 12)
+
+        if largura_teste <= w or not linha_atual:
+            linha_atual.append(palavra)
+        else:
+            linhas.append(" ".join(linha_atual))
+            linha_atual = [palavra]
+
+    if linha_atual:
+        linhas.append(" ".join(linha_atual))
+
+    if not linhas:
+        return
+
+    # ── Medir altura de uma linha ────────────────────────────────
+    try:
+        b0 = draw.textbbox((0, 0), linhas[0], font=fonte)
+        line_h = max(1, b0[3] - b0[1])
+    except Exception:
+        line_h = fonte.size if hasattr(fonte, "size") else 14
+
+    espaco = int(line_h * 0.25)
+    total_h = len(linhas) * line_h + max(0, len(linhas) - 1) * espaco
+
+    # ── Posição Y inicial (centralizado verticalmente) ───────────
+    start_y = y + max(0, (h - total_h) // 2)
+
+    # ── Renderizar cada linha ────────────────────────────────────
+    for i, linha in enumerate(linhas):
+        ly = start_y + i * (line_h + espaco)
+        cy_linha = ly + line_h // 2
+
+        try:
+            bl = draw.textbbox((0, 0), linha, font=fonte)
+            tw = bl[2] - bl[0]
+        except Exception:
+            tw = len(linha) * (line_h // 2)
+
+        if align == "left":
+            cx_linha = x + tw // 2
+        elif align == "right":
+            cx_linha = x + w - tw // 2
+        else:
+            cx_linha = x + w // 2
+
+        colar_texto(draw, imagem, linha, fonte, cx_linha, int(cy_linha), cor, rotacao)
+
+
 def colar_texto(draw, imagem, texto_str, fonte, cx, cy, cor, rotacao):
     bbox = draw.textbbox((0, 0), texto_str, font=fonte)
     tw = bbox[2] - bbox[0]
@@ -740,23 +804,23 @@ def renderizar_comanda(background, numero, cfg, escala: float = 1.0):
             cor = el.get("color", "#000000")
             align = el.get("align", "center")
 
-            # cx/cy = centro do elemento no template (após escala)
-            cx = x + w // 2
-            cy = y + h // 2
-
-            # Ajuste fino de alinhamento horizontal
-            try:
-                bbox = draw.textbbox((0, 0), texto, font=fonte)
-                tw = bbox[2] - bbox[0]
-            except Exception:
-                tw = fs * len(texto) // 2
-
-            if align == "left":
-                cx = x + tw // 2
-            elif align == "right":
-                cx = x + w - tw // 2
-
-            colar_texto(draw, bg, texto, fonte, cx, cy, cor, rot)
+            if el_type == "text":
+                # Texto livre: quebra automática de linha
+                colar_texto_quebrado(draw, bg, texto, fonte, x, y, w, h, cor, rot, align)
+            else:
+                # Número da comanda: linha única centralizada
+                cx = x + w // 2
+                cy = y + h // 2
+                try:
+                    bbox = draw.textbbox((0, 0), texto, font=fonte)
+                    tw   = bbox[2] - bbox[0]
+                except Exception:
+                    tw = fs * len(texto) // 2
+                if align == "left":
+                    cx = x + tw // 2
+                elif align == "right":
+                    cx = x + w - tw // 2
+                colar_texto(draw, bg, texto, fonte, cx, cy, cor, rot)
 
         elif el_type == "logo":
             src = el.get("src", "")
