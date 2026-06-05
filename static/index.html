@@ -284,6 +284,21 @@
   #crop-img { display:block; max-width:100%; }
   .crop-actions { display:flex; gap:6px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
 
+  /* ── Barra de geração ── */
+  #gen-bar {
+    display: none; flex-shrink: 0;
+    align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 6px 16px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .genbar-sep { width:1px; height:20px; background:var(--border); flex-shrink:0; }
+  #gen-bar input[type=text]   { width:150px; }
+  #gen-bar input[type=number] { width:64px; }
+  #gen-bar select { width:auto; font-size:12px; }
+  #genbar-count { font-size:11px; color:var(--accent); font-weight:600; white-space:nowrap; }
+  #genbar-doc-ok { font-size:11px; font-weight:600; }
+
   /* ── Render warm-up banner ── */
   #render-warmup {
     position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:9999;
@@ -465,6 +480,37 @@
   <button class="tb-icon-btn" id="btn-dark" onclick="toggleDark()" title="Tema escuro / claro" style="font-size:17px">🌙</button>
 </div>
 
+<!-- Barra de geração — sempre visível durante edição -->
+<div id="gen-bar" style="display:none">
+
+  <!-- Seção QR Code (tipo + documento) -->
+  <div id="genbar-qr" style="display:none;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+    <span class="prop-lbl" style="white-space:nowrap">Documento</span>
+    <select id="tipo-doc" style="width:auto;font-size:12px" onchange="verificarDocumento();atualizarBarCount()">
+      <option value="CNPJ">CNPJ</option>
+      <option value="CPF">CPF</option>
+    </select>
+    <input type="text" id="documento" placeholder="somente dígitos" oninput="verificarDocumento()" style="width:150px">
+    <span id="genbar-doc-ok"></span>
+  </div>
+
+  <!-- Seção Barcode (prefixo) -->
+  <div id="genbar-bc" style="display:none;display:flex;align-items:center;gap:6px">
+    <span class="prop-lbl" style="white-space:nowrap">Prefixo</span>
+    <input type="text" id="bc-prefixo" value="/" placeholder="/" style="width:60px">
+  </div>
+
+  <div class="genbar-sep"></div>
+
+  <!-- Intervalo (sempre visível) -->
+  <span class="prop-lbl" style="white-space:nowrap">Comandas</span>
+  <span style="font-size:11px;color:var(--text2)">De</span>
+  <input type="number" id="lote-ini" value="1" min="1" oninput="atualizarBarCount()">
+  <span style="font-size:11px;color:var(--text2)">até</span>
+  <input type="number" id="lote-fim" value="10" min="1" oninput="atualizarBarCount()">
+  <span id="genbar-count">10 comandas</span>
+</div>
+
 <div id="main" style="display:none">
   <!-- Painel esquerdo -->
   <div class="panel">
@@ -534,40 +580,6 @@
       <div class="notice" id="fonte-notice">Coloque arquivos .ttf na pasta <strong>fonts/</strong> e recarregue.</div>
     </div>
 
-    <div class="psec" id="sec-documento" style="display:none">
-      <div class="plabel" style="display:flex;align-items:center;gap:6px">
-        Dados do documento
-        <span id="doc-status-badge" style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:10px;text-transform:none;letter-spacing:0;background:#ffeeba;color:#856404">⚠ obrigatório</span>
-      </div>
-      <div class="prop-lbl" style="margin-bottom:4px">Tipo</div>
-      <select id="tipo-doc" class="inp-mb" onchange="verificarDocumento()">
-        <option value="CNPJ">CNPJ</option>
-        <option value="CPF">CPF</option>
-      </select>
-      <div class="prop-lbl" style="margin-bottom:4px">Número (somente dígitos)</div>
-      <input type="text" id="documento" placeholder="Ex: 12345678000195" class="inp-mb" oninput="verificarDocumento()">
-      <div id="doc-feedback" style="font-size:11px;min-height:14px;margin-top:-2px;margin-bottom:4px"></div>
-      <div class="notice">Será codificado no QR como URL + número da comanda.</div>
-    </div>
-
-    <div class="psec" id="sec-prefixo" style="display:none">
-      <div class="plabel">Código de barras</div>
-      <div class="prop-lbl" style="margin-bottom:4px">Prefixo</div>
-      <input type="text" id="bc-prefixo" value="/" placeholder="Ex: /" class="inp-mb">
-      <div class="notice">O número da comanda será adicionado após o prefixo (ex: /0001).</div>
-    </div>
-
-    <div class="psec">
-      <div class="plabel">Geração em lote</div>
-      <div class="prop-row">
-        <span class="prop-lbl">Nº inicial</span>
-        <input type="number" id="lote-ini" value="1" min="1" class="inp-sm">
-      </div>
-      <div class="prop-row">
-        <span class="prop-lbl">Nº final</span>
-        <input type="number" id="lote-fim" value="10" min="1" class="inp-sm">
-      </div>
-    </div>
   </div>
 
   <!-- Canvas -->
@@ -679,32 +691,8 @@
   <div class="modal" style="max-width:420px">
     <h3>🖼 Gerar QR Codes em imagem</h3>
 
-    <!-- Dados do documento — mesmo padrão do painel esquerdo -->
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:10px">
-      <div class="plabel" style="margin-bottom:6px">Dados do documento (QR Code)</div>
-      <div class="prop-row" style="margin-bottom:6px">
-        <span class="prop-lbl">Tipo</span>
-        <select id="qi-tipo-doc" style="width:auto" onchange="qiSincronizarDoc()">
-          <option value="CNPJ">CNPJ</option>
-          <option value="CPF">CPF</option>
-        </select>
-      </div>
-      <div class="prop-lbl" style="margin-bottom:4px">Número (somente dígitos)</div>
-      <input type="text" id="qi-documento" placeholder="Ex: 12345678000195" class="inp-mb"
-        oninput="qiSincronizarDoc()">
-      <div id="qi-doc-status" style="font-size:11px;min-height:16px"></div>
-    </div>
-
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span class="prop-lbl" style="white-space:nowrap">Nº inicial</span>
-        <input type="number" id="qi-ini" value="1" min="1" class="inp-sm" oninput="qiAtualizarInfo();_qiAtualizarDoc()">
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span class="prop-lbl" style="white-space:nowrap">Nº final</span>
-        <input type="number" id="qi-fim" value="100" min="1" class="inp-sm" oninput="qiAtualizarInfo()">
-      </div>
-    </div>
+    <!-- Resumo da barra de geração -->
+    <div id="qi-resumo-bar" class="notice" style="margin-bottom:12px;font-size:12px"></div>
 
     <div class="prop-lbl" style="margin-bottom:5px">Tamanho</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px" id="qi-tamanho-btns"></div>
@@ -912,46 +900,8 @@
   <div class="modal" style="max-width:480px">
     <h3>⬇ Gerar PDF em lote</h3>
 
-    <!-- Confirmação de dados — QR Code -->
-    <div id="g-sec-qr" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:12px">
-      <div class="plabel" style="margin-bottom:8px">📄 Dados do QR Code</div>
-      <div style="display:flex;gap:5px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
-        <select id="g-tipo-doc" style="width:auto;flex-shrink:0" onchange="gSincronizar()">
-          <option value="CNPJ">CNPJ</option>
-          <option value="CPF">CPF</option>
-        </select>
-        <input type="text" id="g-documento" style="flex:1;min-width:130px" placeholder="somente dígitos" oninput="gSincronizar()">
-      </div>
-      <div id="g-doc-status" style="font-size:11px;min-height:14px;margin-bottom:8px"></div>
-      <div class="prop-lbl" style="margin-bottom:5px">Intervalo de comandas</div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text2)">De</span>
-        <input type="number" id="g-ini" min="1" value="1" class="inp-sm" oninput="gSincronizar()">
-        <span style="font-size:12px;color:var(--text2)">até</span>
-        <input type="number" id="g-fim" min="1" value="10" class="inp-sm" oninput="gSincronizar()">
-        <span id="g-resumo" style="font-size:11px;color:var(--text2);margin-left:4px"></span>
-      </div>
-    </div>
-
-    <!-- Confirmação de dados — Código de Barras -->
-    <div id="g-sec-bc" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:12px">
-      <div class="plabel" style="margin-bottom:8px">🔢 Dados do Código de Barras</div>
-      <div class="prop-row" style="margin-bottom:8px">
-        <span class="prop-lbl">Prefixo</span>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input type="text" id="g-prefixo" style="width:70px" placeholder="/" oninput="gSincronizar()">
-          <span id="g-bc-exemplo" style="font-size:11px;color:var(--text2)"></span>
-        </div>
-      </div>
-      <div class="prop-lbl" style="margin-bottom:5px">Intervalo de comandas</div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text2)">De</span>
-        <input type="number" id="g-ini-bc" min="1" value="1" class="inp-sm" oninput="gSincronizar()">
-        <span style="font-size:12px;color:var(--text2)">até</span>
-        <input type="number" id="g-fim-bc" min="1" value="10" class="inp-sm" oninput="gSincronizar()">
-        <span id="g-resumo-bc" style="font-size:11px;color:var(--text2);margin-left:4px"></span>
-      </div>
-    </div>
+    <!-- Resumo lido da barra de geração -->
+    <div id="g-resumo-bar" class="notice" style="margin-bottom:12px;font-size:12px"></div>
 
     <div class="prop-row" style="margin-bottom:8px">
       <span class="prop-lbl">Formato</span>
@@ -1111,6 +1061,7 @@ function startEditor(type) {
   codeType = type;
   document.getElementById('chooser').style.display = 'none';
   document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('gen-bar').style.display = 'flex';
   document.getElementById('main').style.display = 'flex';
   const isQR = type === 'qr';
   window.codeType = type; // expõe globalmente para mkDiv usar
@@ -1118,8 +1069,8 @@ function startEditor(type) {
   document.getElementById('btn-code-ico').textContent = isQR ? '📱' : '🔢';
   document.getElementById('btn-code-lbl').textContent = isQR ? 'QR Code' : 'Código de Barras';
   // Mostrar painel de documento só para QR, prefixo só para barcode
-  document.getElementById('sec-documento').style.display = isQR ? 'block' : 'none';
-  document.getElementById('sec-prefixo').style.display = isQR ? 'none' : 'block';
+  document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
+  document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
   elements = []; selectedId = null; idCounter = 0;
   document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
   document.getElementById('btn-snap').classList.toggle('active', snapEnabled);
@@ -1133,6 +1084,7 @@ function voltarEscolha(forcar) {
   elements = []; selectedId = null; codeType = null;
   _marcarSalvo();
   document.getElementById('topbar').style.display = 'none';
+  document.getElementById('gen-bar').style.display = 'none';
   document.getElementById('main').style.display = 'none';
   document.getElementById('chooser').style.display = 'flex';
   showProps(null);
@@ -1692,8 +1644,8 @@ function loadPattern(id) {
   document.getElementById('btn-code-ico').textContent = codeType==='qr' ? '📱' : '🔢';
   document.getElementById('btn-code-lbl').textContent = codeType==='qr' ? 'QR Code' : 'Código de Barras';
   const isQR = codeType === 'qr';
-  document.getElementById('sec-documento').style.display = isQR ? 'block' : 'none';
-  document.getElementById('sec-prefixo').style.display = isQR ? 'none' : 'block';
+  document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
+  document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
   window.codeType = codeType;
   resizeCanvas(); selectedId=null; showProps(null); renderAll();
 }
@@ -1741,8 +1693,8 @@ function openQrImgPreviewModal() {
   const h3 = document.getElementById('pv-modal-titulo');
   if (h3) h3.textContent = '👁 Preview QR Code';
   // Pré-preenche intervalo com valores do modal QR
-  const ini = parseInt(document.getElementById('qi-ini')?.value) || 1;
-  const fim = Math.min(parseInt(document.getElementById('qi-fim')?.value) || 5, ini + 9);
+  const ini = parseInt(document.getElementById('lote-ini')?.value) || 1;
+  const fim = Math.min(parseInt(document.getElementById('lote-fim')?.value) || 5, ini + 9);
   document.getElementById('pv-range-ini').value = ini;
   document.getElementById('pv-range-fim').value = fim;
   if (!pvNums.length) pvNums = [ini];
@@ -2058,7 +2010,14 @@ async function abrirModalQrImg() {
   document.getElementById('qi-btn-cancelar').disabled = false;
   qiRenderTamanhos();
   qiAtualizarInfo();
-  _qiAtualizarDoc();
+  // Resumo da barra
+  const ini   = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim   = parseInt(document.getElementById('lote-fim').value) || 10;
+  const total = Math.max(0, fim - ini + 1);
+  const tipo  = document.getElementById('tipo-doc').value;
+  const doc   = document.getElementById('documento').value;
+  const res   = document.getElementById('qi-resumo-bar');
+  if (res) res.textContent = `📄 ${tipo} ${doc}  ·  QR Codes ${ini} a ${fim} (${total} total)`;
   document.getElementById('modal-qr-img').style.display = 'flex';
 }
 
@@ -2114,8 +2073,8 @@ function _qiAtualizarDoc() {
 
 
 function qiAtualizarInfo() {
-  const ini     = parseInt(document.getElementById('qi-ini').value) || 1;
-  const fim     = parseInt(document.getElementById('qi-fim').value) || 1;
+  const ini     = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim     = parseInt(document.getElementById('lote-fim').value) || 1;
   const total   = fim - ini + 1;
   const loteMax = (qiPresets[qiTamanhoSel] || {}).lote_max || 150;
   const info    = document.getElementById('qi-info');
@@ -2142,8 +2101,8 @@ async function gerarQrImagens() {
     return;
   }
 
-  const ini     = parseInt(document.getElementById('qi-ini').value) || 1;
-  const fim     = parseInt(document.getElementById('qi-fim').value) || 1;
+  const ini     = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim     = parseInt(document.getElementById('lote-fim').value) || 1;
   if (fim < ini) { alert('Nº final deve ser maior que o inicial.'); return; }
 
   const qual    = parseInt(document.querySelector('input[name="qi-qual"]:checked')?.value || 95);
@@ -2303,22 +2262,19 @@ function _atualizarBtnUndo() {
   if (badge) badge.textContent = n > 0 ? n : '';
 }
 
-// ── Verificação visual do documento (painel esq.) ────────────────
+// ── Verificação visual do documento (barra de geração) ───────────
 function verificarDocumento() {
   const doc    = (document.getElementById('documento')?.value || '').trim();
   const tipo   = document.getElementById('tipo-doc')?.value || 'CNPJ';
   const nums   = doc.replace(/\D/g, '');
   const needed = tipo === 'CNPJ' ? 14 : 11;
-  const badge  = document.getElementById('doc-status-badge');
-  const fb     = document.getElementById('doc-feedback');
+  const okEl   = document.getElementById('genbar-doc-ok');
   const campo  = document.getElementById('documento');
   if (nums.length === needed) {
-    if (badge) { badge.textContent = '✅ válido'; badge.style.background = '#d4edda'; badge.style.color = '#155724'; }
-    if (fb)    { fb.textContent = ''; }
+    if (okEl)  { okEl.textContent = '✅'; okEl.style.color = 'var(--success,#2e7d32)'; }
     if (campo) campo.style.borderColor = '';
   } else {
-    if (badge) { badge.textContent = '⚠ obrigatório'; badge.style.background = '#ffeeba'; badge.style.color = '#856404'; }
-    if (fb)    { fb.textContent = nums.length > 0 ? `${nums.length} de ${needed} dígitos` : ''; fb.style.color = 'var(--danger)'; }
+    if (okEl)  { okEl.textContent = nums.length > 0 ? `${nums.length}/${needed}` : '⚠'; okEl.style.color = 'var(--danger)'; }
     if (campo) campo.style.borderColor = nums.length > 0 ? 'var(--danger)' : '';
   }
 }
@@ -3009,6 +2965,15 @@ function selecionarQualidade(key) {
   atualizarInfoGerar();
 }
 
+function atualizarBarCount() {
+  const ini   = parseInt(document.getElementById('lote-ini')?.value) || 1;
+  const fim   = parseInt(document.getElementById('lote-fim')?.value) || 1;
+  const total = Math.max(0, fim - ini + 1);
+  const el    = document.getElementById('genbar-count');
+  if (el) el.textContent = total > 0 ? `${total} comanda${total > 1 ? 's' : ''}` : '';
+  renderQualidadeBtns(); atualizarInfoGerar();
+}
+
 function _getLoteMax() {
   const custom = parseInt(document.getElementById('g-lote-max')?.value);
   if (custom && custom > 0) return custom;
@@ -3083,41 +3048,33 @@ function openGerarModal() {
   if (!validarDocumentoQR()) return;
   document.getElementById('g-aceite').checked = false;
 
-  const isQR = codeType === 'qr';
-  document.getElementById('g-sec-qr').style.display = isQR ? 'block' : 'none';
-  document.getElementById('g-sec-bc').style.display = isQR ? 'none'  : 'block';
-
-  // Pré-preenche intervalo do painel esquerdo
-  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
-  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
-
+  // Resumo direto da barra — sem duplicar campos
+  const ini   = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim   = parseInt(document.getElementById('lote-fim').value) || 10;
+  const total = Math.max(0, fim - ini + 1);
+  const isQR  = codeType === 'qr';
+  let txt = '';
   if (isQR) {
-    document.getElementById('g-ini').value       = ini;
-    document.getElementById('g-fim').value       = fim;
-    document.getElementById('g-tipo-doc').value  = document.getElementById('tipo-doc').value  || 'CNPJ';
-    document.getElementById('g-documento').value = document.getElementById('documento').value  || '';
+    txt = `📄 ${document.getElementById('tipo-doc').value} ${document.getElementById('documento').value}  ·  Comandas ${ini} a ${fim} (${total} total)`;
   } else {
-    document.getElementById('g-ini-bc').value  = ini;
-    document.getElementById('g-fim-bc').value  = fim;
-    document.getElementById('g-prefixo').value = document.getElementById('bc-prefixo').value || '/';
+    txt = `🔢 Prefixo "${document.getElementById('bc-prefixo').value || '/'}"  ·  Comandas ${ini} a ${fim} (${total} total)`;
   }
+  document.getElementById('g-resumo-bar').textContent = txt;
 
-  gSincronizar();
-  // Preenche campo "por lote" com o valor sugerido para a qualidade selecionada
-  const sugerido = (qualidadePresets[qualidadeSelecionada] || {}).lote_max || 40;
+  const sugerido = (qualidadePresets[qualidadeSelecionada] || {}).lote_max || 20;
   const campo = document.getElementById('g-lote-max');
   const badge = document.getElementById('g-sugerido');
   if (campo) campo.value = sugerido;
   if (badge) badge.textContent = sugerido;
+  renderQualidadeBtns(); atualizarInfoGerar();
   document.getElementById('modal-gerar').style.display = 'flex';
 }
 
 async function gerarPDF() {
   if (!document.getElementById('g-aceite').checked) { alert('Marque que já validou o layout no preview.'); return; }
   if (!validarDocumentoQR()) return;
-  const isQR = codeType === 'qr';
-  const ini  = parseInt(document.getElementById(isQR ? 'g-ini' : 'g-ini-bc').value) || 1;
-  const fim  = parseInt(document.getElementById(isQR ? 'g-fim' : 'g-fim-bc').value) || 10;
+  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
   if (fim < ini) { alert('O número final deve ser maior que o inicial.'); return; }
   const total = fim - ini + 1;
   const formato = document.getElementById('g-formato').value;
