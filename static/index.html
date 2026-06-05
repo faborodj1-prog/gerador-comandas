@@ -284,6 +284,17 @@
   #crop-img { display:block; max-width:100%; }
   .crop-actions { display:flex; gap:6px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
 
+  /* ── Editor Rápido de Imagem ── */
+  .editor-tab-btn {
+    flex:1; padding:6px 4px; border:1px solid var(--border); border-radius:var(--radius);
+    background:var(--surface); cursor:pointer; font-size:11px; color:var(--text2);
+    transition:background .12s; white-space:nowrap;
+  }
+  .editor-tab-btn:hover { background:var(--surface2); }
+  .editor-tab-btn.active { background:var(--accent-bg); border-color:var(--accent); color:var(--accent); font-weight:600; }
+  #editor-cor-canvas { display:block; max-width:100%; cursor:crosshair; }
+  .cor-preview-swatch { width:32px; height:32px; border:2px solid var(--border); border-radius:6px; flex-shrink:0; }
+
   /* ── Barra de geração ── */
   #gen-bar {
     display: none; flex-shrink: 0;
@@ -656,17 +667,7 @@
       </div>
       <div class="psec" id="logo-props" style="display:none">
         <div class="plabel">Edição Rápida</div>
-        <div class="img-tools">
-          <button class="img-tool-btn" onclick="openApagarModal()">🧹 Apagar área</button>
-          <button class="img-tool-btn" onclick="openRecorteModal()" title="Selecione a região que quer manter">✂️ Recorte</button>
-          <div class="fundo-wrap">
-            <button class="img-tool-btn" onclick="toggleFundoMenu('logo')">🎨 Fundo ▾</button>
-            <div id="fundo-menu-logo" class="fundo-menu" style="display:none">
-              <div class="fundo-opt" onclick="abrirRemoverCor('logo')">🎯 Por cor (rápido)</div>
-              <div class="fundo-opt" onclick="removerFundoIA('logo')">🤖 Por IA (preciso)</div>
-            </div>
-          </div>
-        </div>
+        <button class="tool-btn" onclick="abrirEditorImg()" style="justify-content:center">🖼 Abrir editor</button>
       </div>
       <div class="psec">
         <div class="plabel">Camadas</div>
@@ -800,6 +801,94 @@
     <div class="modal-btns">
       <button class="tb-btn" onclick="closeModal('modal-config')">Cancelar</button>
       <button class="tb-btn primary" onclick="aplicarConfigs()">✔ Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Editor Rápido de Imagem -->
+<div class="overlay" id="modal-editor-img" style="display:none">
+  <div class="modal" style="max-width:440px;width:95vw">
+    <h3>🖼 Editor Rápido de Imagem</h3>
+
+    <!-- Abas -->
+    <div style="display:flex;gap:4px;margin-bottom:14px">
+      <button class="editor-tab-btn active" id="editor-btn-cor"     onclick="editorTab('cor')"    >🎨 Cor</button>
+      <button class="editor-tab-btn"        id="editor-btn-recorte" onclick="editorTab('recorte')">✂️ Recorte</button>
+      <button class="editor-tab-btn"        id="editor-btn-apagar"  onclick="editorTab('apagar')" >🧹 Apagar</button>
+      <button class="editor-tab-btn"        id="editor-btn-ia"      onclick="editorTab('ia')"     >🤖 IA</button>
+    </div>
+
+    <!-- ABA: Cor -->
+    <div id="editor-tab-cor">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Clique na imagem para capturar a cor que deseja alterar.</p>
+      <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:8px;background-image:linear-gradient(45deg,#ddd 25%,transparent 25%),linear-gradient(-45deg,#ddd 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ddd 75%),linear-gradient(-45deg,transparent 75%,#ddd 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0">
+        <canvas id="editor-cor-canvas"></canvas>
+      </div>
+      <div id="editor-cor-hint" style="font-size:11px;color:var(--text2);margin-bottom:10px">Clique em qualquer ponto da imagem acima.</div>
+
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <div id="editor-cor-amostra" class="cor-preview-swatch"></div>
+        <div>
+          <div style="font-size:10px;color:var(--text2)">Cor capturada</div>
+          <div id="editor-cor-hex" style="font-family:monospace;font-size:12px;font-weight:600">—</div>
+        </div>
+        <div style="flex:1;min-width:100px">
+          <div style="font-size:10px;color:var(--text2);margin-bottom:2px">Tolerância: <b id="editor-cor-tol-val">30</b></div>
+          <input type="range" id="editor-cor-tol" min="0" max="100" value="30" style="width:100%;accent-color:var(--accent)" oninput="document.getElementById('editor-cor-tol-val').textContent=this.value">
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text2)"><span>Exato</span><span>Amplo</span></div>
+        </div>
+      </div>
+
+      <div class="plabel" style="margin-bottom:6px">Resultado</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+          <input type="radio" name="editor-cor-modo" value="transparent" checked style="accent-color:var(--accent)">
+          Tornar transparente
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+          <input type="radio" name="editor-cor-modo" value="substituir" style="accent-color:var(--accent)">
+          Substituir por
+          <input type="color" id="editor-cor-subst" value="#cc0000" style="width:30px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:2px">
+        </label>
+      </div>
+
+      <div class="modal-btns">
+        <button class="tb-btn" onclick="closeModal('modal-editor-img')">Cancelar</button>
+        <button class="tb-btn primary" id="editor-cor-btn" onclick="aplicarEditorCor()">✔ Aplicar</button>
+      </div>
+    </div>
+
+    <!-- ABA: Recorte -->
+    <div id="editor-tab-recorte" style="display:none;text-align:center">
+      <div style="font-size:48px;margin:16px 0">✂️</div>
+      <p style="font-size:13px;margin-bottom:6px">Selecione a região que deseja <strong>manter</strong>.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:20px">O restante da imagem será descartado, como no Paint.</p>
+      <div class="modal-btns">
+        <button class="tb-btn" onclick="closeModal('modal-editor-img')">Cancelar</button>
+        <button class="tb-btn primary" onclick="closeModal('modal-editor-img');openRecorteModal()">Abrir ferramenta de recorte</button>
+      </div>
+    </div>
+
+    <!-- ABA: Apagar -->
+    <div id="editor-tab-apagar" style="display:none;text-align:center">
+      <div style="font-size:48px;margin:16px 0">🧹</div>
+      <p style="font-size:13px;margin-bottom:6px">Selecione regiões para <strong>apagar</strong>.</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:20px">A área selecionada fica transparente. Pode apagar várias regiões antes de confirmar.</p>
+      <div class="modal-btns">
+        <button class="tb-btn" onclick="closeModal('modal-editor-img')">Cancelar</button>
+        <button class="tb-btn primary" onclick="closeModal('modal-editor-img');openApagarModal()">Abrir ferramenta de apagar</button>
+      </div>
+    </div>
+
+    <!-- ABA: IA -->
+    <div id="editor-tab-ia" style="display:none;text-align:center">
+      <div style="font-size:48px;margin:16px 0">🤖</div>
+      <p style="font-size:13px;margin-bottom:6px">Remove o fundo automaticamente com IA.</p>
+      <div class="notice" style="text-align:left;margin-bottom:16px">Requer <code>pip install rembg</code> no servidor. Pode demorar alguns segundos na primeira vez.</div>
+      <div class="modal-btns">
+        <button class="tb-btn" onclick="closeModal('modal-editor-img')">Cancelar</button>
+        <button class="tb-btn primary" onclick="editorIAAplicar()">🤖 Aplicar IA</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2489,6 +2578,114 @@ function _syncCfgPresets() {
   const bc = configSistema.bc_cor_modulo.toLowerCase();
   document.getElementById('cfg-bp').classList.toggle('ativo', bc === '#000000');
   document.getElementById('cfg-bb').classList.toggle('ativo', bc === '#ffffff');
+}
+
+// ── Editor Rápido de Imagem ───────────────────────────────────────
+let _editorImgSrc   = null;
+let _editorCorCap   = null;   // cor capturada pelo clique
+let _editorCorBound = false;
+
+function abrirEditorImg() {
+  const el = getEl(selectedId);
+  if (!el || el.type !== 'logo' || !el.src) { toast('Selecione um elemento de imagem.'); return; }
+  _editorImgSrc = el.src;
+  _editorCorCap = null;
+
+  // Resetar aba Cor
+  document.getElementById('editor-cor-amostra').style.background = '';
+  document.getElementById('editor-cor-hex').textContent = '—';
+  document.getElementById('editor-cor-hint').textContent = 'Clique em qualquer ponto da imagem acima.';
+  document.getElementById('editor-cor-btn').disabled = true;
+
+  editorTab('cor');
+  _editorCarregarCanvas(el.src);
+
+  // Bind de clique no canvas (uma só vez)
+  if (!_editorCorBound) {
+    const c = document.getElementById('editor-cor-canvas');
+    c.addEventListener('click', e => {
+      if (!_editorImgSrc) return;
+      const r = c.getBoundingClientRect();
+      const px = c.getContext('2d').getImageData(
+        Math.floor(e.clientX - r.left),
+        Math.floor(e.clientY - r.top), 1, 1).data;
+      const hex = '#' + [px[0],px[1],px[2]].map(v => v.toString(16).padStart(2,'0')).join('');
+      _editorCorCap = hex;
+      document.getElementById('editor-cor-amostra').style.background = hex;
+      document.getElementById('editor-cor-hex').textContent = hex;
+      document.getElementById('editor-cor-hint').textContent = `Cor capturada: ${hex} — ajuste a tolerância e clique em Aplicar.`;
+      document.getElementById('editor-cor-btn').disabled = false;
+    });
+    _editorCorBound = true;
+  }
+
+  document.getElementById('modal-editor-img').style.display = 'flex';
+}
+
+function _editorCarregarCanvas(src) {
+  const img = new Image();
+  img.onload = () => {
+    const c = document.getElementById('editor-cor-canvas');
+    const maxW = Math.min(img.naturalWidth,  380);
+    const maxH = Math.min(img.naturalHeight, 280);
+    const sc   = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+    c.width  = Math.round(img.naturalWidth  * sc);
+    c.height = Math.round(img.naturalHeight * sc);
+    const ctx = c.getContext('2d');
+    const cs  = 10;
+    for (let y = 0; y < c.height; y += cs)
+      for (let x = 0; x < c.width; x += cs) {
+        ctx.fillStyle = ((x/cs + y/cs) % 2 === 0) ? '#dedede' : '#f5f5f5';
+        ctx.fillRect(x, y, cs, cs);
+      }
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+  };
+  img.src = src;
+}
+
+function editorTab(tab) {
+  ['cor','recorte','apagar','ia'].forEach(t => {
+    document.getElementById(`editor-tab-${t}`).style.display = 'none';
+    document.getElementById(`editor-btn-${t}`).classList.remove('active');
+  });
+  document.getElementById(`editor-tab-${tab}`).style.display = 'block';
+  document.getElementById(`editor-btn-${tab}`).classList.add('active');
+}
+
+async function aplicarEditorCor() {
+  if (!_editorCorCap) { toast('Clique na imagem para capturar a cor primeiro.'); return; }
+  const el = getEl(selectedId); if (!el) return;
+  const tol   = document.getElementById('editor-cor-tol').value;
+  const modo  = document.querySelector('input[name="editor-cor-modo"]:checked').value;
+  const subst = modo === 'substituir' ? document.getElementById('editor-cor-subst').value : 'transparent';
+  const btn   = document.getElementById('editor-cor-btn');
+  btn.disabled = true; btn.textContent = '⏳ Processando...';
+  try {
+    const blob = await (await fetch(_editorImgSrc)).blob();
+    const fd = new FormData();
+    fd.append('imagem', blob, 'img.png');
+    fd.append('cor', _editorCorCap);
+    fd.append('tolerancia', tol);
+    fd.append('substituir', subst);
+    const r = await fetch('/remover-fundo-cor', { method:'POST', body:fd });
+    if (!r.ok) throw new Error(await r.text());
+    const rb = await r.blob();
+    await _aplicarResultado('logo', rb);
+    _editorImgSrc = el.src;
+    _editorCorCap = null;
+    document.getElementById('editor-cor-amostra').style.background = '';
+    document.getElementById('editor-cor-hex').textContent = '—';
+    document.getElementById('editor-cor-hint').textContent = 'Cor alterada! Clique novamente para ajustar outra cor.';
+    btn.disabled = true;
+    _editorCarregarCanvas(_editorImgSrc);
+    toast('✅ Cor alterada com sucesso!', 4000);
+  } catch(e) { alert('Erro: ' + e.message); }
+  finally { btn.textContent = '✔ Aplicar'; }
+}
+
+async function editorIAAplicar() {
+  closeModal('modal-editor-img');
+  await removerFundoIA('logo');
 }
 
 // ── Apagar área / Recorte de imagem ──────────────────────────────

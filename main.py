@@ -300,14 +300,15 @@ async def remover_fundo_cor(
     imagem: UploadFile = File(...),
     cor: str = Form("#ffffff"),
     tolerancia: int = Form(30),
+    substituir: str = Form("transparent"),  # "transparent" ou cor hex ex: "#cc0000"
 ):
     try:
         img_bytes = await imagem.read()
         img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
-        r_t = int(cor[1:3], 16)
-        g_t = int(cor[3:5], 16)
-        b_t = int(cor[5:7], 16)
-        limiar = tolerancia * 2.55  # 0-100 → 0-255
+        r_t, g_t, b_t = _hex_to_rgb(cor)
+        limiar = tolerancia * 2.55
+        usar_subst = substituir != "transparent"
+        rs, gs, bs  = _hex_to_rgb(substituir) if usar_subst else (0, 0, 0)
         pixels = img.load()
         w, h = img.size
         for y in range(h):
@@ -315,7 +316,7 @@ async def remover_fundo_cor(
                 r, g, b, a = pixels[x, y]
                 dist = ((r - r_t) ** 2 + (g - g_t) ** 2 + (b - b_t) ** 2) ** 0.5
                 if dist <= limiar:
-                    pixels[x, y] = (r, g, b, 0)
+                    pixels[x, y] = (rs, gs, bs, 255) if usar_subst else (r, g, b, 0)
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)
