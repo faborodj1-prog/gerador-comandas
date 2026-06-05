@@ -1201,12 +1201,16 @@ function startEditor(type) {
 }
 
 function voltarEscolha(forcar) {
-  if (!forcar && elements.length > 0 && !confirm('Voltar? O canvas atual será perdido.')) return;
-  elements = []; selectedId = null; codeType = null;
-  _marcarSalvo();
-  document.getElementById('topbar').style.display = 'none';
+  // Limpa tudo e volta para a tela de escolha de tipo
+  elements = []; selectedId = null; idCounter = 0;
+  codeType = null; _undoStack = [];
+  _marcarSalvo(); _atualizarBtnUndo();
+  // Resetar fundo e template
+  bgMode = 'cor'; bgColor = '#ffffff';
+  templateFile = null; templateDataURL = null;
+  document.getElementById('topbar').style.display  = 'none';
   document.getElementById('gen-bar').style.display = 'none';
-  document.getElementById('main').style.display = 'none';
+  document.getElementById('main').style.display    = 'none';
   document.getElementById('chooser').style.display = 'flex';
   showProps(null);
 }
@@ -2377,22 +2381,62 @@ function _confirmar(ico, titulo, msg, onOk) {
 }
 
 function confirmarTrocarTipo() {
-  if (!elements.length) { voltarEscolha(); return; }
   _confirmar('⇄', 'Mudar tipo de código?',
-    'O canvas atual será apagado. Salve o projeto antes se quiser reutilizar este layout.',
+    'Todo o layout atual será perdido — elementos, fundo e configurações serão resetados.\nSalve o projeto antes se quiser reutilizar.',
     () => voltarEscolha(true));
 }
 
 function confirmarNovo() {
-  if (!elements.length) { _novoCanvas(); return; }
   _confirmar('🗋', 'Criar novo projeto?',
-    'Todos os elementos do canvas serão removidos. Esta ação pode ser desfeita com Ctrl+Z.',
-    _novoCanvas);
+    'Todos os elementos, configurações de fundo, documento e intervalo serão resetados para os valores padrão.\nEsta ação não pode ser desfeita.',
+    _resetarTudo);
 }
 
-function _novoCanvas() {
-  saveHistory(); _marcarModificado();
-  elements = []; selectedId = null; showProps(null); renderAll();
+function _resetarTudo() {
+  // ── Limpar canvas ──────────────────────────────────
+  elements = []; selectedId = null; idCounter = 0;
+  _undoStack = []; _atualizarBtnUndo();
+
+  // ── Tamanho do canvas ──────────────────────────────
+  document.getElementById('cv-w').value = 400;
+  document.getElementById('cv-h').value = 600;
+
+  // ── Fundo → cor branca ─────────────────────────────
+  bgMode = 'cor'; bgColor = '#ffffff';
+  templateFile = null; templateDataURL = null;
+  setBgTab('cor');
+  document.getElementById('bg-color').value = '#ffffff';
+  applyBgColor('#ffffff');
+  document.getElementById('template-info').style.display   = 'none';
+  document.getElementById('btn-remover-img').style.display = 'none';
+  document.getElementById('bg-img-tools').style.display    = 'none';
+
+  // ── Documento / prefixo ────────────────────────────
+  const docEl = document.getElementById('documento');
+  if (docEl) docEl.value = '';
+  const tipoEl = document.getElementById('tipo-doc');
+  if (tipoEl) tipoEl.value = 'CNPJ';
+  const prefEl = document.getElementById('bc-prefixo');
+  if (prefEl) prefEl.value = '/';
+  verificarDocumento();
+
+  // ── Intervalo ──────────────────────────────────────
+  document.getElementById('lote-ini').value = 1;
+  document.getElementById('lote-fim').value = 10;
+  atualizarBarCount();
+
+  // ── Fonte ──────────────────────────────────────────
+  const fonteEl = document.getElementById('fonte-sel');
+  if (fonteEl) { fonteEl.value = ''; previewFonte(''); }
+
+  // ── Zoom → 100% ────────────────────────────────────
+  zoom = 1;
+  document.getElementById('zoom-label').textContent = '100%';
+
+  // ── UI ─────────────────────────────────────────────
+  _marcarSalvo();
+  resizeCanvas(); renderAll(); showProps(null);
+  toast('🗋 Projeto resetado para o padrão.', 3000);
 }
 
 // ── Snap toggle ───────────────────────────────────────────────────
