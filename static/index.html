@@ -2601,8 +2601,10 @@ function handleArteInput(ev) {
       document.getElementById('type-badge').textContent = isQR ? 'QR Code' : 'Código de Barras';
       document.getElementById('btn-code-ico').textContent = isQR ? '📱' : '🔢';
       document.getElementById('btn-code-lbl').textContent = isQR ? 'QR Code' : 'Código de Barras';
-      document.getElementById('sec-documento').style.display = isQR ? 'block' : 'none';
-      document.getElementById('sec-prefixo').style.display   = isQR ? 'none'  : 'block';
+      document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
+      document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
+      if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
+      document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
 
       // Canvas
       elements  = JSON.parse(JSON.stringify(p.elements));
