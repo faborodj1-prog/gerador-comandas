@@ -1291,20 +1291,109 @@ function removerTemplate() {
   applyBgColor(bgColor);
 }
 
+// ── Compressão de imagens (fundo e logos) ─────────────────────────
+// Reduz imagens grandes antes de armazenar/enviar. Objetivo duplo:
+//   1) não estourar o limite de upload do servidor (evita travar);
+//   2) não estourar a RAM do Render free na geração do PDF.
+// O QR Code e o código de barras NÃO são afetados: são gerados pelo
+// backend em alta resolução, independentes da imagem de fundo. A comanda
+// impressa mantém a nitidez, pois o backend reamplia o fundo para a DPI
+// escolhida (300 na qualidade Alta).
+function _carregarImg(src) {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = src;
+  });
+}
+
+// Converte um dataURL em File (para enviar como parte de upload).
+async function _dataURLparaFile(dataURL, nome) {
+  const blob = await (await fetch(dataURL)).blob();
+  const ext  = blob.type === 'image/jpeg' ? 'jpg' : (blob.type === 'image/webp' ? 'webp' : 'png');
+  return new File([blob], nome.replace(/\.\w+$/, '') + '.' + ext, { type: blob.type || 'image/png' });
+}
+
+// Estimativa de bytes de um dataURL (base64 ≈ 3/4 do comprimento).
+function _bytesDataURL(dataURL) {
+  const i = dataURL.indexOf(',');
+  return Math.ceil((dataURL.length - i - 1) * 0.75);
+}
+
+// Comprime uma imagem para caber em (maxW × maxH).
+//   stretch=true  → estica exatamente para maxW×maxH (fundo; o editor já
+//                   exibe o fundo esticado em 100% 100%, então é WYSIWYG).
+//   stretch=false → mantém a proporção, cabendo dentro de maxW×maxH (logos).
+// Só reprocessa se a imagem estiver acima do alvo; senão devolve o original.
+async function comprimirImagem(dataURL, maxW, maxH, stretch) {
+  try {
+    const img = await _carregarImg(dataURL);
+    if (img.width <= maxW && img.height <= maxH) {
+      return { dataURL, mudou: false, w: img.width, h: img.height };
+    }
+
+    let dw, dh;
+    if (stretch) {
+      dw = maxW; dh = maxH;
+    } else {
+      const escala = Math.min(maxW / img.width, maxH / img.height);
+      dw = Math.max(1, Math.round(img.width  * escala));
+      dh = Math.max(1, Math.round(img.height * escala));
+    }
+
+    const cv = document.createElement('canvas');
+    cv.width = dw; cv.height = dh;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, dw, dh);
+
+    // Detecta transparência para escolher o formato de saída
+    let temAlpha = false;
+    if (/^data:image\/(png|webp|gif)/i.test(dataURL)) {
+      const d = ctx.getImageData(0, 0, dw, dh).data;
+      for (let i = 3; i < d.length; i += 4) { if (d[i] < 255) { temAlpha = true; break; } }
+    }
+
+    const LIMITE = 900 * 1024;  // margem confortável abaixo do 1 MB do servidor
+    let out;
+    if (temAlpha) {
+      out = cv.toDataURL('image/png');                 // preserva transparência
+      if (_bytesDataURL(out) > LIMITE) {
+        const webp = cv.toDataURL('image/webp', 0.92); // webp mantém o alpha
+        if (webp.startsWith('data:image/webp')) out = webp;
+      }
+    } else {
+      out = cv.toDataURL('image/png');                 // sem perda quando cabe
+      if (_bytesDataURL(out) > LIMITE) {
+        out = cv.toDataURL('image/jpeg', 0.92);        // alta qualidade se precisar
+      }
+    }
+    return { dataURL: out, mudou: true, w: dw, h: dh };
+  } catch (e) {
+    return { dataURL, mudou: false };
+  }
+}
+
 function loadTemplate(ev) {
   const file = ev.target.files[0]; if (!file) return;
-  templateFile = file;
   const reader = new FileReader();
-  reader.onload = e => {
-    templateDataURL = e.target.result;
+  reader.onload = async e => {
+    const cvW = parseInt(document.getElementById('cv-w').value) || 400;
+    const cvH = parseInt(document.getElementById('cv-h').value) || 600;
+    const res = await comprimirImagem(e.target.result, cvW, cvH, true);
+    templateDataURL = res.dataURL;
+    templateFile    = null;   // passamos a usar sempre o dataURL (já otimizado)
     const bg = document.getElementById('canvas-bg');
     bg.style.backgroundImage = `url(${templateDataURL})`;
     bg.style.backgroundSize = '100% 100%';
     bg.style.backgroundColor = '';
     const img = new Image();
     img.onload = () => {
-      document.getElementById('template-info').style.display = 'block';
-      document.getElementById('template-info').textContent = `Imagem: ${img.width}×${img.height}px`;
+      const info = document.getElementById('template-info');
+      info.style.display = 'block';
+      info.textContent = `Imagem: ${img.width}×${img.height}px` + (res.mudou ? ' (otimizada)' : '');
       document.getElementById('btn-remover-img').style.display = 'flex';
       document.getElementById('bg-img-tools').style.display = 'flex';
     };
@@ -1708,7 +1797,10 @@ function push(data) {
 function handleLogo(ev) {
   const file = ev.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => push({type:'logo',x:50,y:50,w:150,h:100,src:e.target.result});
+  reader.onload = async e => {
+    const res = await comprimirImagem(e.target.result, 800, 800, false);
+    push({type:'logo',x:50,y:50,w:150,h:100,src:res.dataURL});
+  };
   reader.readAsDataURL(file);
   ev.target.value = '';
 }
@@ -2587,7 +2679,7 @@ function handleArteInput(ev) {
   if (!file) return;
   ev.target.value = '';
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     try {
       const p = JSON.parse(e.target.result);
       if (!p.codeType || !Array.isArray(p.elements)) throw new Error('Arquivo inválido ou corrompido.');
@@ -2614,7 +2706,9 @@ function handleArteInput(ev) {
 
       // Fundo
       if (p.templateDataURL) {
-        templateDataURL = p.templateDataURL;
+        const cvW = p.canvasW || 400, cvH = p.canvasH || 600;
+        const res = await comprimirImagem(p.templateDataURL, cvW, cvH, true);
+        templateDataURL = res.dataURL;
         templateFile    = null;
         bgMode = 'img';
         setBgTab('img');
@@ -2623,7 +2717,7 @@ function handleArteInput(ev) {
         bg.style.backgroundSize   = '100% 100%';
         bg.style.backgroundColor  = '';
         document.getElementById('template-info').style.display   = 'block';
-        document.getElementById('template-info').textContent     = 'Imagem carregada';
+        document.getElementById('template-info').textContent     = res.mudou ? 'Imagem carregada (otimizada)' : 'Imagem carregada';
         document.getElementById('btn-remover-img').style.display = 'flex';
         document.getElementById('bg-img-tools').style.display    = 'flex';
       } else {
@@ -3213,7 +3307,11 @@ document.addEventListener('keydown', e => {
 
 // ── Gerar PDF ─────────────────────────────────────────────────────
 async function buildArquivoTemplate() {
-  if (templateFile) return templateFile;
+  // Fundo em imagem: envia o dataURL já otimizado, convertido em File.
+  if (bgMode === 'img' && templateDataURL) {
+    return await _dataURLparaFile(templateDataURL, 'template');
+  }
+  // Fundo em cor sólida: gera um canvas preenchido com a cor.
   const cvW = parseInt(document.getElementById('cv-w').value) || 400;
   const cvH = parseInt(document.getElementById('cv-h').value) || 600;
   const tmpCanvas = document.createElement('canvas');
