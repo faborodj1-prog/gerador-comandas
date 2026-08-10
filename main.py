@@ -21,6 +21,23 @@ from barcode.writer import ImageWriter
 import uvicorn
 import gc
 
+# ── Limite de tamanho por parte no upload (multipart) ────────────────
+# Versões recentes do Starlette (>=0.40) impõem um limite de 1 MB por parte
+# do formulário, rejeitando fundos/logos grandes com "Part exceeded maximum
+# size of 1024KB". Elevamos esse limite para 25 MB. O frontend já comprime as
+# imagens; isto é uma rede de segurança para o preview/geração nunca travar.
+try:
+    import inspect
+    import starlette.formparsers as _fp
+    if "max_part_size" in inspect.signature(_fp.MultiPartParser.__init__).parameters:
+        _mpp_init_orig = _fp.MultiPartParser.__init__
+        def _mpp_init_patch(self, *args, **kwargs):
+            kwargs["max_part_size"] = 25 * 1024 * 1024   # 25 MB
+            _mpp_init_orig(self, *args, **kwargs)
+        _fp.MultiPartParser.__init__ = _mpp_init_patch
+except Exception:
+    pass
+
 app = FastAPI(title="Gerador de Comandas")
 
 app.add_middleware(
@@ -37,7 +54,11 @@ app.mount("/fonts-preview", StaticFiles(directory="fonts"), name="fonts-preview"
 
 @app.get("/")
 def index():
-    return FileResponse("static/index.html")
+    # no-cache: garante que cada deploy chegue ao usuário sem hard refresh
+    return FileResponse(
+        "static/index.html",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 # ── Fontes curadas na pasta fonts/ (baixadas via baixar_fontes.py) ──────────

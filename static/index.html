@@ -2701,6 +2701,14 @@ function handleArteInput(ev) {
       // Canvas
       elements  = JSON.parse(JSON.stringify(p.elements));
       idCounter = elements.reduce((m, el) => Math.max(m, el.id), 0);
+
+      // Reotimiza logos já embutidos no projeto (mantém o upload leve)
+      for (const el of elements) {
+        if (el.type === 'logo' && el.src) {
+          const rl = await comprimirImagem(el.src, 800, 800, false);
+          if (rl.mudou) el.src = rl.dataURL;
+        }
+      }
       document.getElementById('cv-w').value = p.canvasW || 400;
       document.getElementById('cv-h').value = p.canvasH || 600;
 
