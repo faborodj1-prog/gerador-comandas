@@ -551,6 +551,132 @@ async def gerar_qr_zip(
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
 
 
+# ── Presets para código de barras standalone (imagem) ───────────
+# px = largura alvo da imagem (o barcode é naturalmente retangular/largo)
+BC_IMG_PRESETS = {
+    "baixa":  {"px": 600,  "label": "Baixa (600 px)",   "lote_max": 500},
+    "media":  {"px": 1000, "label": "Média (1000 px)",  "lote_max": 300},
+    "alta":   {"px": 1600, "label": "Alta (1600 px)",   "lote_max": 150},
+    "maxima": {"px": 2400, "label": "Máxima (2400 px)", "lote_max": 80},
+}
+
+@app.get("/bc-img-presets")
+def get_bc_img_presets():
+    return {"presets": BC_IMG_PRESETS, "padrao": "alta"}
+
+
+@app.post("/preview-bc-img")
+async def preview_bc_img(
+    numero: int = Form(1),
+    prefixo: str = Form("/"),
+    cfg_sistema_json: str = Form("{}"),
+):
+    """Gera um único código de barras em JPEG para preview no modal."""
+    try:
+        cfg_sistema = json.loads(cfg_sistema_json)
+        img = _gerar_barcode_imagem(numero, prefixo, 1000, cfg_sistema)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=92, optimize=True, subsampling=0)
+        buf.seek(0)
+        return StreamingResponse(buf, media_type="image/jpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/gerar-bc-zip")
+async def gerar_bc_zip(
+    inicio: int = Form(1),
+    fim: int = Form(10),
+    prefixo: str = Form("/"),
+    tamanho_px: int = Form(1600),
+    qualidade_jpg: int = Form(95),
+    cfg_sistema_json: str = Form("{}"),
+):
+    total = fim - inicio + 1
+    if total <= 0:
+        raise HTTPException(status_code=400, detail="Nº final deve ser maior que o inicial.")
+    if total > 500:
+        raise HTTPException(status_code=400, detail=f"LIMITE_EXCEDIDO:{total}:500")
+
+    try:
+        cfg_sistema = json.loads(cfg_sistema_json)
+        padding     = len(str(fim))
+
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for num in range(inicio, fim + 1):
+                img = _gerar_barcode_imagem(num, prefixo, tamanho_px, cfg_sistema)
+                img_buf = io.BytesIO()
+                img.save(img_buf, format="JPEG", quality=qualidade_jpg, optimize=True, subsampling=0)
+                img_buf.seek(0)
+                zf.writestr(f"{str(num).zfill(padding)}.jpg", img_buf.getvalue())
+
+        zip_buf.seek(0)
+        nome = f"barcodes_{inicio}_a_{fim}.zip"
+        return StreamingResponse(
+            zip_buf,
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={nome}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+
+def _gerar_barcode_imagem(numero: int, prefixo: str, tamanho_px: int, cfg_sistema: dict) -> "Image.Image":
+    """Código de barras standalone de alta qualidade na largura alvo (px).
+
+    Inclui o número legível (HRT) abaixo das barras — padrão para códigos de
+    barras avulsos e útil para identificar a comanda a olho nu.
+    """
+    cfg = cfg_sistema or {}
+    codigo = f"{prefixo}{str(numero).zfill(4)}"
+    # IMPORTANTE: nesta versão do python-barcode (0.15.x) as opções só têm
+    # efeito quando passadas no .write(options=...); set_options() é ignorado.
+    opcoes = {
+        "module_width":  0.4,
+        "module_height": 15.0,
+        "quiet_zone":    4.0,
+        "font_size":     10,
+        "text_distance": 4.0,
+        "write_text":    True,
+        "dpi":           300,
+    }
+    # Code128 codifica exatamente o prefixo; fallback para Code39
+    try:
+        obj = Code128(codigo, writer=ImageWriter())
+    except Exception:
+        obj = Code39(codigo, writer=ImageWriter(), add_checksum=False)
+    buf = io.BytesIO()
+    obj.write(buf, options=opcoes)
+    buf.seek(0)
+    img = Image.open(buf).convert("RGB")
+
+    # Redimensiona para a largura alvo mantendo proporção (NEAREST = barras nítidas)
+    w, h = img.size
+    nova_h = max(1, round(h * (tamanho_px / w)))
+    img = img.resize((tamanho_px, nova_h), Image.Resampling.NEAREST)
+
+    # Recolorir se o sistema definiu cores não-padrão (fundo transparente vira branco no JPEG)
+    cor_barra = cfg.get("bc_cor_modulo", "#000000")
+    fundo_bc  = cfg.get("bc_fundo", "#ffffff")
+    usar_fundo = fundo_bc not in ("#ffffff", "transparent")
+    if cor_barra != "#000000" or usar_fundo:
+        rm, gm, bm = _hex_to_rgb(cor_barra)
+        rf, gf, bf = _hex_to_rgb(fundo_bc) if usar_fundo else (255, 255, 255)
+        px = img.load()
+        for y in range(img.height):
+            for x in range(img.width):
+                r, g, b = px[x, y]
+                if r < 128:
+                    px[x, y] = (rm, gm, bm)
+                elif usar_fundo:
+                    px[x, y] = (rf, gf, bf)
+    return img
+
+
 def _gerar_qr_imagem(numero: int, dado_base: str, tamanho_px: int, cfg_sistema: dict) -> "Image.Image":
     """QR Code standalone de alta qualidade — sem resize, gerado nativamente no tamanho alvo."""
     if dado_base and dado_base.strip(":"):

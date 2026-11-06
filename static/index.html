@@ -478,6 +478,7 @@
   <div class="tb-group">
     <button class="tb-btn" onclick="openPreviewModal()" title="Visualizar comandas antes de gerar">👁 Preview</button>
     <button class="tb-btn" id="btn-qr-img" onclick="abrirModalQrImg()" title="Exportar QR Codes como imagens JPG" style="display:none">🖼 QR</button>
+    <button class="tb-btn" id="btn-bc-img" onclick="abrirModalBcImg()" title="Exportar códigos de barras como imagens JPG" style="display:none">🖼 Barras</button>
     <button class="tb-btn primary" onclick="openGerarModal()">⬇ Gerar PDF</button>
   </div>
   <div class="tb-sep"></div>
@@ -763,6 +764,78 @@
     <div class="modal-btns">
       <button class="tb-btn" id="qi-btn-cancelar" onclick="closeModal('modal-qr-img')">Cancelar</button>
       <button class="tb-btn primary" id="qi-btn" onclick="gerarQrImagens()">⬇ Gerar ZIP</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Gerar Códigos de Barras em imagem -->
+<div class="overlay" id="modal-bc-img" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <h3>🖼 Gerar Códigos de Barras em imagem</h3>
+
+    <!-- Prefixo editável -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:10px">
+      <div class="plabel" style="margin-bottom:6px">Prefixo do código</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="bi-prefixo" placeholder="/" style="flex:1;min-width:130px" oninput="biSincronizarPrefixo()">
+      </div>
+      <div id="bi-prefixo-status" style="font-size:11px;min-height:14px;color:var(--text2);margin-top:4px"></div>
+    </div>
+
+    <!-- Intervalo diretamente no modal -->
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="prop-lbl" style="white-space:nowrap">Nº inicial</span>
+        <input type="number" id="bi-ini" value="1" min="1" class="inp-sm" oninput="biSincronizarIntervalo()">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="prop-lbl" style="white-space:nowrap">Nº final</span>
+        <input type="number" id="bi-fim" value="10" min="1" class="inp-sm" oninput="biSincronizarIntervalo()">
+      </div>
+    </div>
+
+    <div class="prop-lbl" style="margin-bottom:5px">Tamanho</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px" id="bi-tamanho-btns"></div>
+
+    <div class="prop-lbl" style="margin-bottom:5px">Qualidade JPG</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+        <input type="radio" name="bi-qual" value="85"> Normal (85%)
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+        <input type="radio" name="bi-qual" value="95" checked> Alta (95%)
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+        <input type="radio" name="bi-qual" value="100"> Máxima (100%)
+      </label>
+    </div>
+
+    <div class="notice" id="bi-info" style="margin-bottom:10px"></div>
+
+    <button class="tb-btn" onclick="openBcImgPreviewModal()"
+      style="width:100%;justify-content:center;margin-bottom:8px">
+      👁 Preview Códigos de Barras
+    </button>
+
+    <div class="notice" style="background:#fff8e1;border-color:#f0c040;color:#7a5c00;margin-bottom:4px">
+      ⚠️ Faça um preview antes de gerar os códigos em lote.
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px;font-size:12px;cursor:pointer">
+      <input type="checkbox" id="bi-aceite"> Já validei os códigos no preview.
+    </label>
+
+    <!-- Progresso -->
+    <div id="bi-progresso" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:8px">
+      <div style="font-size:12px;font-weight:500;margin-bottom:5px" id="bi-prog-label">Iniciando...</div>
+      <div style="background:var(--border);border-radius:4px;height:8px;margin-bottom:5px;overflow:hidden">
+        <div id="bi-prog-bar" style="background:var(--accent);height:8px;border-radius:4px;width:0%;transition:width .5s"></div>
+      </div>
+      <div id="bi-prog-detalhe" style="font-size:11px;color:var(--text2);min-height:16px"></div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="tb-btn" id="bi-btn-cancelar" onclick="closeModal('modal-bc-img')">Cancelar</button>
+      <button class="tb-btn primary" id="bi-btn" onclick="gerarBcImagens()">⬇ Gerar ZIP</button>
     </div>
   </div>
 </div>
@@ -1198,6 +1271,7 @@ function startEditor(type) {
   if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
   elements = []; selectedId = null; idCounter = 0;
   document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
+  document.getElementById('btn-bc-img').style.display = isQR ? 'none' : 'flex';
   document.getElementById('btn-snap').classList.toggle('active', snapEnabled);
   _marcarSalvo(); _atualizarBtnUndo();
   resizeCanvas(); renderAll(); renderPatterns(); carregarFontes(); carregarPresets(); _initDarkBtn();
@@ -1898,7 +1972,7 @@ function renderPatterns() {
 let pvNums  = [];          // números escolhidos pelo usuário
 let pvCache = {};          // cache: numero → objectURL
 let pvIdx   = 0;           // índice atual na lista pvNums
-let pvMode  = 'canvas';    // 'canvas' | 'qr-img'
+let pvMode  = 'canvas';    // 'canvas' | 'qr-img' | 'bc-img'
 
 function openQrImgPreviewModal() {
   const doc  = (document.getElementById('qi-documento')?.value || '').trim();
@@ -2008,6 +2082,8 @@ async function pvLoad(num) {
   const tipoLabel = codeType === 'barcode' ? 'Código de Barras' : 'QR Code';
   const titulo = pvMode === 'qr-img'
     ? `Preview QR Code — #${num}`
+    : pvMode === 'bc-img'
+    ? `Preview Código de Barras — #${num}`
     : `Preview ${tipoLabel} — Comanda #${num}`;
   if (pvCache[num]) {
     document.getElementById('preview-img').src = pvCache[num];
@@ -2027,6 +2103,15 @@ async function pvLoad(num) {
       fd.append('tipo_doc',         tDoc);
       fd.append('cfg_sistema_json', JSON.stringify(configSistema));
       const r = await fetch('/preview-qr-img', { method:'POST', body:fd });
+      if (!r.ok) { const t = await r.text(); throw new Error((JSON.parse(t).detail || t)); }
+      blob = await r.blob();
+    } else if (pvMode === 'bc-img') {
+      const pref = document.getElementById('bi-prefixo')?.value || document.getElementById('bc-prefixo')?.value || '/';
+      const fd = new FormData();
+      fd.append('numero',           num);
+      fd.append('prefixo',          pref);
+      fd.append('cfg_sistema_json', JSON.stringify(configSistema));
+      const r = await fetch('/preview-bc-img', { method:'POST', body:fd });
       if (!r.ok) { const t = await r.text(); throw new Error((JSON.parse(t).detail || t)); }
       blob = await r.blob();
     } else {
@@ -2065,7 +2150,7 @@ function pvUpdateNav() {
 
 function closePvOverlay() {
   document.getElementById('preview-overlay').style.display = 'none';
-  if (pvMode === 'qr-img') {
+  if (pvMode === 'qr-img' || pvMode === 'bc-img') {
     pvMode = 'canvas';
     pvCache = {};
     // Restaura título do modal de preview
@@ -2450,6 +2535,195 @@ async function gerarQrImagens() {
   btnCanc.textContent = 'Fechar';
 }
 
+// ── Códigos de Barras em imagem (ZIP) — espelho do fluxo QR ───────
+let biPresets    = {};
+let biTamanhoSel = 'alta';
+
+async function abrirModalBcImg() {
+  if (!Object.keys(biPresets).length) {
+    try {
+      const d = await (await fetch('/bc-img-presets')).json();
+      biPresets    = d.presets;
+      biTamanhoSel = d.padrao;
+    } catch {
+      biPresets = {
+        baixa:  { px: 600,  label: 'Baixa (600 px)',   lote_max: 500 },
+        media:  { px: 1000, label: 'Média (1000 px)',  lote_max: 300 },
+        alta:   { px: 1600, label: 'Alta (1600 px)',   lote_max: 150 },
+        maxima: { px: 2400, label: 'Máxima (2400 px)', lote_max: 80  },
+      };
+    }
+  }
+  // Resetar estado
+  document.getElementById('bi-aceite').checked = false;
+  document.getElementById('bi-progresso').style.display = 'none';
+  document.getElementById('bi-prog-bar').style.background = 'var(--accent)';
+  document.getElementById('bi-prog-bar').style.width = '0%';
+  document.getElementById('bi-btn').disabled = false;
+  document.getElementById('bi-btn').textContent = '⬇ Gerar ZIP';
+  document.getElementById('bi-btn-cancelar').disabled = false;
+  document.getElementById('bi-btn-cancelar').textContent = 'Cancelar';
+  // Pré-preenche prefixo da barra
+  document.getElementById('bi-prefixo').value = document.getElementById('bc-prefixo')?.value || '/';
+  // Pré-preenche intervalo da barra
+  const ini = parseInt(document.getElementById('lote-ini').value) || 1;
+  const fim = parseInt(document.getElementById('lote-fim').value) || 10;
+  document.getElementById('bi-ini').value = ini;
+  document.getElementById('bi-fim').value = fim;
+  biSincronizarPrefixo();
+  biRenderTamanhos();
+  biAtualizarInfo();
+  document.getElementById('modal-bc-img').style.display = 'flex';
+}
+
+function biRenderTamanhos() {
+  document.getElementById('bi-tamanho-btns').innerHTML = Object.entries(biPresets).map(([k, p]) => {
+    const sel = k === biTamanhoSel;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--radius);border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--surface)'};cursor:pointer;font-size:12px" onclick="biSelecionarTamanho('${k}')">
+      <input type="radio" name="bi-tam" value="${k}" ${sel?'checked':''} style="accent-color:var(--accent)">
+      <div><span style="font-weight:500">${p.label}</span>
+      <span style="color:var(--text2);font-size:11px;margin-left:6px">· máx ${p.lote_max}/lote</span></div>
+    </label>`;
+  }).join('');
+}
+
+function biSelecionarTamanho(key) {
+  biTamanhoSel = key;
+  biRenderTamanhos();
+  biAtualizarInfo();
+}
+
+function biSincronizarPrefixo() {
+  const val = document.getElementById('bi-prefixo').value;
+  const prefEl = document.getElementById('bc-prefixo');
+  if (prefEl) { prefEl.value = val; if (typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo(); }
+  const st = document.getElementById('bi-prefixo-status');
+  if (st) {
+    const n = String(parseInt(document.getElementById('bi-ini')?.value) || 1).padStart(4, '0');
+    st.textContent = `Exemplo do código gerado: ${val || '/'}${n}`;
+  }
+}
+
+function biSincronizarIntervalo() {
+  const ini = parseInt(document.getElementById('bi-ini')?.value) || 1;
+  const fim = parseInt(document.getElementById('bi-fim')?.value) || 1;
+  document.getElementById('lote-ini').value = ini;
+  document.getElementById('lote-fim').value = fim;
+  if (typeof atualizarBarCount === 'function') atualizarBarCount();
+  biSincronizarPrefixo();
+  biAtualizarInfo();
+}
+
+function biAtualizarInfo() {
+  const ini = parseInt(document.getElementById('bi-ini')?.value) || 1;
+  const fim = parseInt(document.getElementById('bi-fim')?.value) || 1;
+  const total = fim - ini + 1;
+  const loteMax = (biPresets[biTamanhoSel] || {}).lote_max || 150;
+  const info = document.getElementById('bi-info');
+  if (total <= 0) { info.textContent = 'Nº final deve ser maior que o inicial.'; return; }
+  const lotes = Math.ceil(total / loteMax);
+  if (lotes > 1) {
+    info.innerHTML = `<span style="color:var(--text2)">📦 ${total} códigos → <b>${lotes} ZIPs</b> de até ${loteMax} por vez.</span>`;
+  } else {
+    info.innerHTML = `<span style="color:var(--success,#2e7d32)">✅ ${total} código(s) em <b>1 ZIP</b>.</span>`;
+  }
+}
+
+function _biProgresso(concluidos, total, label, detalhe) {
+  const pct = total > 0 ? Math.round((concluidos / total) * 100) : 0;
+  document.getElementById('bi-prog-bar').style.width = pct + '%';
+  if (label) document.getElementById('bi-prog-label').textContent = label;
+  if (detalhe !== undefined) document.getElementById('bi-prog-detalhe').textContent = detalhe;
+}
+
+function openBcImgPreviewModal() {
+  pvMode = 'bc-img';
+  pvCache = {};
+  const h3 = document.getElementById('pv-modal-titulo');
+  if (h3) h3.textContent = '👁 Preview Código de Barras';
+  const ini = parseInt(document.getElementById('lote-ini')?.value) || 1;
+  const fim = Math.min(parseInt(document.getElementById('lote-fim')?.value) || 5, ini + 9);
+  document.getElementById('pv-range-ini').value = ini;
+  document.getElementById('pv-range-fim').value = fim;
+  if (!pvNums.length) pvNums = [ini];
+  renderPvTags();
+  document.getElementById('modal-preview').style.display = 'flex';
+  setTimeout(() => document.getElementById('pv-range-ini').focus(), 80);
+}
+
+async function gerarBcImagens() {
+  if (!document.getElementById('bi-aceite').checked) {
+    alert('Marque que já validou os códigos no preview.');
+    return;
+  }
+  const ini = parseInt(document.getElementById('bi-ini')?.value || document.getElementById('lote-ini').value) || 1;
+  const fim = parseInt(document.getElementById('bi-fim')?.value || document.getElementById('lote-fim').value) || 1;
+  if (fim < ini) { alert('Nº final deve ser maior que o inicial.'); return; }
+
+  const qual    = parseInt(document.querySelector('input[name="bi-qual"]:checked')?.value || 95);
+  const px      = (biPresets[biTamanhoSel] || {}).px || 1600;
+  const loteMax = (biPresets[biTamanhoSel] || {}).lote_max || 150;
+  const pref    = document.getElementById('bi-prefixo')?.value || '/';
+  const total   = fim - ini + 1;
+
+  const lotes = [];
+  for (let s = ini; s <= fim; s += loteMax)
+    lotes.push({ ini: s, fim: Math.min(s + loteMax - 1, fim) });
+
+  const btn     = document.getElementById('bi-btn');
+  const btnCanc = document.getElementById('bi-btn-cancelar');
+  btn.disabled = true; btn.textContent = '⏳ Gerando...';
+  btnCanc.disabled = true;
+  document.getElementById('bi-progresso').style.display = 'block';
+  _biProgresso(0, lotes.length, `Iniciando geração de ${total} código(s)...`, '');
+
+  let concluidos = 0, erros = 0;
+  for (let i = 0; i < lotes.length; i++) {
+    const lote = lotes[i];
+    const qtd  = lote.fim - lote.ini + 1;
+    _biProgresso(i, lotes.length,
+      `Gerando lote ${i+1} de ${lotes.length}: códigos ${lote.ini} a ${lote.fim}...`,
+      `${i} de ${lotes.length} lotes concluídos · ${concluidos} de ${total} arquivos`);
+    try {
+      const fd = new FormData();
+      fd.append('inicio',           lote.ini);
+      fd.append('fim',              lote.fim);
+      fd.append('prefixo',          pref);
+      fd.append('tamanho_px',       px);
+      fd.append('qualidade_jpg',    qual);
+      fd.append('cfg_sistema_json', JSON.stringify(configSistema));
+      const r = await fetch('/gerar-bc-zip', { method: 'POST', body: fd });
+      if (!r.ok) { const t = await r.text(); let msg = t; try { msg = JSON.parse(t).detail; } catch {} throw new Error(msg); }
+      const blob = await r.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = lotes.length > 1 ? `barcodes_${lote.ini}_a_${lote.fim}.zip` : `barcodes_${ini}_a_${fim}.zip`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 3000);
+      concluidos += qtd;
+      _biProgresso(i + 1, lotes.length, null,
+        `${i+1} de ${lotes.length} lotes concluídos · ${concluidos} de ${total} arquivos`);
+    } catch (e) {
+      erros++;
+      _biProgresso(i + 1, lotes.length, `❌ Erro no lote ${i+1}: ${e.message}`, null);
+    }
+  }
+
+  if (erros === 0) {
+    const label = document.getElementById('bi-prog-label');
+    label.textContent = `✅ Todos os ${lotes.length} lote(s) gerados com sucesso!`;
+    label.style.cssText = 'font-size:15px;font-weight:700;color:#1b5e20;background:#e8f5e9;border:2px solid #a5d6a7;border-radius:8px;padding:10px 14px;text-align:center;margin-bottom:6px';
+    document.getElementById('bi-prog-bar').style.background = '#2e7d32';
+    document.getElementById('bi-prog-detalhe').textContent  = `${total} arquivo(s) JPG em ${lotes.length} ZIP(s).`;
+  } else {
+    document.getElementById('bi-prog-label').textContent = `Concluído com ${erros} erro(s). Verifique e tente novamente.`;
+  }
+
+  btn.disabled = false; btn.textContent = '⬇ Gerar ZIP';
+  btnCanc.disabled = false; btnCanc.textContent = 'Fechar';
+}
+
 // ── Estado: projeto modificado ───────────────────────────────────
 let _projetoModificado = false;
 
@@ -2697,6 +2971,7 @@ function handleArteInput(ev) {
       document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
       if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
       document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
+      document.getElementById('btn-bc-img').style.display = isQR ? 'none' : 'flex';
 
       // Canvas
       elements  = JSON.parse(JSON.stringify(p.elements));

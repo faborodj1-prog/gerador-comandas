@@ -51,6 +51,9 @@ ROADMAP.md           ← Roadmap (DESATUALIZADO — ver "Pontos de atenção")
 | `/qr-img-presets` | GET | Presets de tamanho para QR standalone |
 | `/preview-qr-img` | POST | Preview de 1 QR Code (JPEG) |
 | `/gerar-qr-zip` | POST | Gera N QR Codes em ZIP de imagens |
+| `/bc-img-presets` | GET | Presets de tamanho para código de barras standalone |
+| `/preview-bc-img` | POST | Preview de 1 código de barras (JPEG) |
+| `/gerar-bc-zip` | POST | Gera N códigos de barras em ZIP de imagens |
 | `/remover-fundo-cor` | POST | Remove fundo por cor (Pillow) |
 | `/remover-fundo-ia` | POST | Remove fundo por IA (`rembg`, opcional) |
 | `/ping` | GET | Health check (warm-up do Render) |
@@ -71,6 +74,15 @@ CNPJ / 11 CPF) é **obrigatório** para gerar QR — validado no backend
 O **código de barras** usa **Code128** (`gerar_barcode`), que codifica o prefixo
 exatamente como digitado (`/`, `;`, `#`, etc). Fallback para Code39 se falhar.
 Nota: leitores em layout US/ABNT2 podem converter `/` em `;` — há aviso no frontend.
+
+Além do barcode na comanda, há a exportação **standalone em imagem/ZIP**
+(`_gerar_barcode_imagem`), análoga à do QR. Esse código avulso **inclui o número
+legível (HRT)** abaixo das barras.
+
+⚠️ **python-barcode 0.15.x:** as opções do `ImageWriter` (module_width,
+write_text, etc) só têm efeito quando passadas em `obj.write(buf, options={...})`.
+`writer.set_options({...})` é **ignorado** — o `gerar_barcode` da comanda "funciona"
+só porque recorta/redimensiona a imagem depois.
 
 ## Restrições de ambiente (Render free)
 
