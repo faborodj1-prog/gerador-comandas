@@ -650,7 +650,10 @@ def _gerar_barcode_imagem(numero: int, prefixo: str, tamanho_px: int, cfg_sistem
     except Exception:
         obj = Code39(codigo, writer=ImageWriter(), add_checksum=False)
     buf = io.BytesIO()
-    obj.write(buf, options=opcoes)
+    # As barras CODIFICAM o prefixo+numero ("/0001"); o texto legivel abaixo
+    # mostra SO o numero ("0001"). `text=` troca apenas o texto exibido, sem
+    # mexer no que e codificado. Ao escanear continua lendo "/0001".
+    obj.write(buf, options=opcoes, text=str(numero).zfill(4))
     buf.seek(0)
     img = Image.open(buf).convert("RGB")
 
