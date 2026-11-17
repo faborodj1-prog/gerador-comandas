@@ -503,12 +503,13 @@
   <!-- Seção QR Code (tipo + documento) -->
   <div id="genbar-qr" style="display:none;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
     <span class="prop-lbl" style="white-space:nowrap">Documento</span>
-    <select id="tipo-doc" style="width:auto;font-size:12px" onchange="verificarDocumento();atualizarBarCount()">
+    <!-- Tipo detectado automaticamente (CPF até 11 dígitos, CNPJ acima) -->
+    <select id="tipo-doc" style="display:none">
       <option value="CNPJ">CNPJ</option>
       <option value="CPF">CPF</option>
     </select>
-    <input type="text" id="documento" placeholder="somente dígitos" oninput="verificarDocumento()" style="width:150px">
-    <span id="genbar-doc-ok"></span>
+    <input type="text" id="documento" placeholder="CPF ou CNPJ (só números)" oninput="verificarDocumento();atualizarBarCount()" inputmode="numeric" style="width:180px">
+    <span id="genbar-doc-ok" style="font-size:11px;font-weight:600"></span>
   </div>
 
   <!-- Seção Barcode (prefixo) -->
@@ -707,11 +708,11 @@
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:10px">
       <div class="plabel" style="margin-bottom:6px">Dados do documento (QR Code)</div>
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
-        <select id="qi-tipo-doc" style="width:auto;font-size:12px" onchange="qiSincronizarDoc()">
+        <select id="qi-tipo-doc" style="display:none">
           <option value="CNPJ">CNPJ</option>
           <option value="CPF">CPF</option>
         </select>
-        <input type="text" id="qi-documento" placeholder="somente dígitos" style="flex:1;min-width:130px" oninput="qiSincronizarDoc()">
+        <input type="text" id="qi-documento" placeholder="CPF ou CNPJ (só números)" inputmode="numeric" style="flex:1;min-width:150px" oninput="qiSincronizarDoc()">
       </div>
       <div id="qi-doc-status" style="font-size:11px;min-height:14px"></div>
     </div>
@@ -2282,15 +2283,15 @@ function ivCancelar() {
 function validarDocumentoQR() {
   if (!_temQR()) return true;   // só exige documento quando há QR (qr ou misto)
   const doc  = (document.getElementById('documento')?.value || '').trim();
-  const tipo = document.getElementById('tipo-doc')?.value || 'CNPJ';
   const nums = doc.replace(/\D/g, '');
-  const needed = tipo === 'CNPJ' ? 14 : 11;
-  if (nums.length !== needed) {
+  const valido = nums.length === 11 || nums.length === 14;  // CPF ou CNPJ
+  if (!valido) {
     alert(
       `⚠️ Documento obrigatório para gerar QR Code\n\n` +
-      `Preencha o ${tipo} completo (${needed} dígitos) no painel esquerdo,\n` +
-      `na seção "Dados do documento (QR Code)".\n\n` +
-      `Sem o documento o QR Code não pode ser gerado.`
+      `Preencha o CPF (11 dígitos) ou CNPJ (14 dígitos) — só números —\n` +
+      `no campo "Documento", na barra acima do canvas.\n` +
+      (nums.length > 0 ? `\nVocê digitou ${nums.length} dígito(s).\n` : ``) +
+      `\nSem o documento o QR Code não pode ser gerado.`
     );
     // Destaca o campo visualmente
     const el = document.getElementById('documento');
@@ -2404,25 +2405,29 @@ function _qiAtualizarDoc() {
 
 
 function qiSincronizarDoc() {
-  const doc  = (document.getElementById('qi-documento')?.value || '').trim();
-  const tipo = document.getElementById('qi-tipo-doc')?.value || 'CNPJ';
-  // Espelha na barra global
+  const qd = document.getElementById('qi-documento');
+  if (!qd) return;
+  // Limpa e detecta o tipo automaticamente
+  const nums = (qd.value || '').replace(/\D/g, '').slice(0, 14);
+  if (qd.value !== nums) qd.value = nums;
+  const tipo = _detectarTipoDoc(nums);
+  const qt = document.getElementById('qi-tipo-doc'); if (qt) qt.value = tipo;
+  // Espelha na barra global (já limpo) e revalida
   const docEl  = document.getElementById('documento');
   const tipoEl = document.getElementById('tipo-doc');
-  if (docEl)  docEl.value  = doc;
+  if (docEl)  docEl.value  = nums;
   if (tipoEl) tipoEl.value = tipo;
   verificarDocumento();
   // Feedback no modal
-  const nums   = doc.replace(/\D/g, '');
   const needed = tipo === 'CNPJ' ? 14 : 11;
   const st     = document.getElementById('qi-doc-status');
   if (!st) return;
-  if (nums.length === needed) {
+  if (nums.length === 0) {
+    st.textContent = 'Informe o CPF ou CNPJ (só números)'; st.style.color = 'var(--text2)';
+  } else if (nums.length === needed) {
     st.textContent = `✅ ${tipo} válido`; st.style.color = 'var(--success,#2e7d32)';
-  } else if (nums.length > 0) {
-    st.textContent = `${nums.length} de ${needed} dígitos`; st.style.color = 'var(--danger)';
   } else {
-    st.textContent = `Informe os ${needed} dígitos do ${tipo}`; st.style.color = 'var(--text2)';
+    st.textContent = `${tipo} — ${nums.length} de ${needed} dígitos`; st.style.color = 'var(--danger)';
   }
 }
 
@@ -2856,19 +2861,32 @@ function _atualizarBtnUndo() {
 }
 
 // ── Verificação visual do documento (barra de geração) ───────────
+// Detecta o tipo de documento pelos dígitos: até 11 = CPF, acima = CNPJ.
+function _detectarTipoDoc(nums) { return nums.length > 11 ? 'CNPJ' : 'CPF'; }
+
 function verificarDocumento() {
-  const doc    = (document.getElementById('documento')?.value || '').trim();
-  const tipo   = document.getElementById('tipo-doc')?.value || 'CNPJ';
-  const nums   = doc.replace(/\D/g, '');
-  const needed = tipo === 'CNPJ' ? 14 : 11;
-  const okEl   = document.getElementById('genbar-doc-ok');
   const campo  = document.getElementById('documento');
-  if (nums.length === needed) {
-    if (okEl)  { okEl.textContent = '✅'; okEl.style.color = 'var(--success,#2e7d32)'; }
-    if (campo) campo.style.borderColor = '';
+  const tipoEl = document.getElementById('tipo-doc');
+  const okEl   = document.getElementById('genbar-doc-ok');
+  if (!campo) return;
+  // 1) Limpa: mantém só dígitos (remove . - / espaços etc) e limita a 14 (CNPJ)
+  const nums = (campo.value || '').replace(/\D/g, '').slice(0, 14);
+  if (campo.value !== nums) campo.value = nums;
+  // 2) Detecta o tipo automaticamente e sincroniza o seletor (oculto)
+  const tipo   = _detectarTipoDoc(nums);
+  if (tipoEl) tipoEl.value = tipo;
+  const needed = tipo === 'CNPJ' ? 14 : 11;
+  // 3) Feedback (vazio = ignora, sem erro)
+  if (!okEl) return;
+  if (nums.length === 0) {
+    okEl.textContent = ''; okEl.style.color = '';
+    campo.style.borderColor = '';
+  } else if (nums.length === needed) {
+    okEl.textContent = `✅ ${tipo}`; okEl.style.color = 'var(--success,#2e7d32)';
+    campo.style.borderColor = '';
   } else {
-    if (okEl)  { okEl.textContent = nums.length > 0 ? `${nums.length}/${needed}` : '⚠'; okEl.style.color = 'var(--danger)'; }
-    if (campo) campo.style.borderColor = nums.length > 0 ? 'var(--danger)' : '';
+    okEl.textContent = `${tipo} ${nums.length}/${needed}`; okEl.style.color = 'var(--danger)';
+    campo.style.borderColor = 'var(--danger)';
   }
 }
 
