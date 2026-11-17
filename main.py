@@ -937,8 +937,12 @@ def renderizar_comanda(background, numero, cfg, escala: float = 1.0):
         rot = el.get("rot", 0)
 
         if el_type == "qr" and tipo in ("qr", "misto"):
+            # QR é sempre quadrado (lado = min(w,h)); centraliza dentro da caixa
+            # w×h — igual ao editor — senão fica colado no canto (fora do centro).
             qr_img = gerar_qr(numero, dado_base, min(w, h), rot, cfg_sistema)
-            bg.paste(qr_img, (x, y), qr_img)
+            ox = x + (w - qr_img.width) // 2
+            oy = y + (h - qr_img.height) // 2
+            bg.paste(qr_img, (ox, oy), qr_img)
 
         elif el_type == "barcode" and tipo in ("barcode", "misto"):
             prefixo = cfg.get("bc_prefixo", "/")

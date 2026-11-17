@@ -2937,7 +2937,7 @@ function salvarArte() {
   if (elements.length === 0) { toast('Canvas vazio — adicione elementos primeiro.'); return; }
   if (!validarDocumentoQR()) return;
   const projeto = {
-    _versao: 2,
+    _versao: 3,
     codeType,
     elements: JSON.parse(JSON.stringify(elements)),
     canvasW: parseInt(document.getElementById('cv-w').value) || 400,
@@ -2946,6 +2946,10 @@ function salvarArte() {
     bgColor,
     templateDataURL: templateDataURL || null,
     configSistema: { ...configSistema },
+    // Dados de geração (restaurados ao abrir o projeto)
+    documento:  document.getElementById('documento')?.value || '',
+    tipo_doc:   document.getElementById('tipo-doc')?.value || 'CNPJ',
+    bc_prefixo: document.getElementById('bc-prefixo')?.value || '/',
   };
   const blob = new Blob([JSON.stringify(projeto)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -3022,6 +3026,16 @@ function handleArteInput(ev) {
         configSistema = { ...configSistema, ...p.configSistema };
         localStorage.setItem('configSistema', JSON.stringify(configSistema));
       }
+
+      // Dados de geração salvos (projeto v3+): documento, tipo e prefixo
+      const _docEl  = document.getElementById('documento');
+      const _tipoEl = document.getElementById('tipo-doc');
+      const _prefEl = document.getElementById('bc-prefixo');
+      if (_docEl)  _docEl.value  = p.documento || '';
+      if (_tipoEl) _tipoEl.value = p.tipo_doc || 'CNPJ';
+      if (_prefEl && p.bc_prefixo != null) _prefEl.value = p.bc_prefixo;
+      if (typeof verificarDocumento === 'function') verificarDocumento();
+      if (typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
 
       selectedId = null;
       resizeCanvas(); renderAll(); showProps(null);
