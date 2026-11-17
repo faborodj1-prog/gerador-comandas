@@ -151,7 +151,7 @@
   }
   #chooser h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
   #chooser p { color: var(--text2); font-size: 14px; margin-bottom: 36px; }
-  .ch-cards { display: flex; gap: 20px; }
+  .ch-cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
   .ch-card {
     width: 210px; padding: 32px 20px; border-radius: var(--radius-lg);
     border: 1px solid var(--border); background: var(--surface);
@@ -431,6 +431,11 @@
       <div class="ch-title">Código de Barras</div>
       <div class="ch-desc">Código 1D lido por leitores de caixa. Ideal para PDV e sistemas legados.</div>
     </div>
+    <div class="ch-card" onclick="startEditor('misto')">
+      <div class="ch-icon">📱🔢</div>
+      <div class="ch-title">Misto (QR + Barras)</div>
+      <div class="ch-desc">Os dois na mesma comanda. Cada um segue sua própria regra; um único intervalo gera ambos.</div>
+    </div>
   </div>
   <div class="ch-steps">
     <div class="ch-step">
@@ -567,9 +572,11 @@
 
     <div class="psec">
       <div class="plabel">Adicionar elemento</div>
-      <button class="tool-btn primary-action" id="btn-add-code" onclick="addCode()">
-        <span class="ico" id="btn-code-ico">📱</span>
-        <span id="btn-code-lbl">QR Code</span>
+      <button class="tool-btn primary-action" id="btn-add-qr" onclick="addCode('qr')" style="display:none">
+        <span class="ico">📱</span> <span>QR Code</span>
+      </button>
+      <button class="tool-btn primary-action" id="btn-add-bc" onclick="addCode('barcode')" style="display:none">
+        <span class="ico">🔢</span> <span>Código de Barras</span>
       </button>
       <button class="tool-btn" onclick="addNumber()"><span class="ico">#</span> Número da comanda</button>
       <button class="tool-btn" onclick="addText()"><span class="ico">🔤</span> Texto livre</button>
@@ -1254,24 +1261,35 @@ function undo() {
 function uid() { return ++idCounter; }
 function getEl(id) { return elements.find(e => e.id === id); }
 
+// Helpers de tipo: 'misto' tem AMBOS (QR + código de barras)
+function _temQR(t){ t = t || codeType; return t === 'qr' || t === 'misto'; }
+function _temBC(t){ t = t || codeType; return t === 'barcode' || t === 'misto'; }
+function _nomeTipo(t){ t = t || codeType; return t === 'misto' ? 'Misto (QR + Barras)' : (t === 'qr' ? 'QR Code' : 'Código de Barras'); }
+
+// Aplica toda a UI que depende do tipo (badge, barras, botões).
+// Usado por startEditor, loadPattern e handleArteInput — fonte única de verdade.
+function _aplicarTipoUI() {
+  const tq = _temQR(), tb = _temBC();
+  const badge = document.getElementById('type-badge');
+  if (badge) badge.textContent = _nomeTipo();
+  document.getElementById('genbar-qr').style.display = tq ? 'flex' : 'none';
+  document.getElementById('genbar-bc').style.display = tb ? 'flex' : 'none';
+  if (tb && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
+  const bAddQr = document.getElementById('btn-add-qr'); if (bAddQr) bAddQr.style.display = tq ? 'flex' : 'none';
+  const bAddBc = document.getElementById('btn-add-bc'); if (bAddBc) bAddBc.style.display = tb ? 'flex' : 'none';
+  document.getElementById('btn-qr-img').style.display = tq ? 'flex' : 'none';
+  document.getElementById('btn-bc-img').style.display = tb ? 'flex' : 'none';
+}
+
 function startEditor(type) {
   codeType = type;
+  window.codeType = type; // expõe globalmente para mkDiv usar
   document.getElementById('chooser').style.display = 'none';
   document.getElementById('topbar').style.display = 'flex';
   document.getElementById('gen-bar').style.display = 'flex';
   document.getElementById('main').style.display = 'flex';
-  const isQR = type === 'qr';
-  window.codeType = type; // expõe globalmente para mkDiv usar
-  document.getElementById('type-badge').textContent = isQR ? 'QR Code' : 'Código de Barras';
-  document.getElementById('btn-code-ico').textContent = isQR ? '📱' : '🔢';
-  document.getElementById('btn-code-lbl').textContent = isQR ? 'QR Code' : 'Código de Barras';
-  // Mostrar painel de documento só para QR, prefixo só para barcode
-  document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
-  document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
-  if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
+  _aplicarTipoUI();
   elements = []; selectedId = null; idCounter = 0;
-  document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
-  document.getElementById('btn-bc-img').style.display = isQR ? 'none' : 'flex';
   document.getElementById('btn-snap').classList.toggle('active', snapEnabled);
   _marcarSalvo(); _atualizarBtnUndo();
   resizeCanvas(); renderAll(); renderPatterns(); carregarFontes(); carregarPresets(); _initDarkBtn();
@@ -1853,11 +1871,12 @@ function applyProp(prop, val) {
 }
 
 // ── Adicionar elementos ───────────────────────────────────────────
-function addCode() {
-  if (codeType === 'qr') {
+function addCode(tipo) {
+  tipo = tipo || (codeType === 'barcode' ? 'barcode' : 'qr');
+  if (tipo === 'qr') {
     push({type:'qr',x:50,y:50,w:130,h:130,qrdata:'https://pediucomeu.com.br/'});
   } else {
-    push({type:'barcode',x:50,y:50,w:200,h:70,numPreview:1,bc_cortev:27,bc_cortee:8,bc_corted:8,bc_rotbarra:0});
+    push({type:'barcode',x:50,y:230,w:200,h:70,numPreview:1,bc_cortev:27,bc_cortee:8,bc_corted:8,bc_rotbarra:0});
   }
 }
 function addText() { push({type:'text',x:50,y:200,w:200,h:44,text:'Texto livre',fs:20,color:'#000000',bold:false,align:'center'}); }
@@ -1925,7 +1944,7 @@ function confirmSavePattern() {
 function loadPattern(id) {
   const p = patterns.find(x => x.id===id); if(!p) return;
   if (p.codeType !== codeType) {
-    const tipoNome = p.codeType === 'qr' ? 'QR Code' : 'Código de Barras';
+    const tipoNome = _nomeTipo(p.codeType);
     if (!confirm(`"${p.name}" é um padrão de ${tipoNome}.\nCarregar irá alterar o modo atual para ${tipoNome}. Deseja continuar?`)) return;
   } else {
     if (!confirm(`Carregar "${p.name}"? O canvas atual será substituído.`)) return;
@@ -1935,15 +1954,10 @@ function loadPattern(id) {
   idCounter = elements.reduce((m,e) => Math.max(m,e.id), 0);
   document.getElementById('cv-w').value = p.canvasW || 400;
   document.getElementById('cv-h').value = p.canvasH || 600;
-  document.getElementById('type-badge').textContent = codeType==='qr' ? 'QR Code' : 'Código de Barras';
-  document.getElementById('btn-code-ico').textContent = codeType==='qr' ? '📱' : '🔢';
-  document.getElementById('btn-code-lbl').textContent = codeType==='qr' ? 'QR Code' : 'Código de Barras';
-  const isQR = codeType === 'qr';
-  document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
-  document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
-  if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
   window.codeType = codeType;
+  _aplicarTipoUI();
   resizeCanvas(); selectedId=null; showProps(null); renderAll();
+  _atualizarBadgePadroes();
 }
 function deletePattern(id) {
   if (!confirm('Excluir este padrão?')) return;
@@ -2004,7 +2018,7 @@ function openPreviewModal() {
   if (!validarDocumentoQR()) return;
   pvMode  = 'canvas';
   pvCache = {};
-  const tipo = codeType === 'qr' ? 'QR Code' : 'Código de Barras';
+  const tipo = _nomeTipo();
   const h3 = document.getElementById('pv-modal-titulo');
   if (h3) h3.textContent = `👁 Preview — ${tipo}`;
   // Pré-preenche intervalo com valores do painel de geração
@@ -2079,7 +2093,7 @@ async function pvStart() {
 }
 
 async function pvLoad(num) {
-  const tipoLabel = codeType === 'barcode' ? 'Código de Barras' : 'QR Code';
+  const tipoLabel = _nomeTipo();
   const titulo = pvMode === 'qr-img'
     ? `Preview QR Code — #${num}`
     : pvMode === 'bc-img'
@@ -2266,7 +2280,7 @@ function ivCancelar() {
 
 // ── Trava de segurança: documento obrigatório para QR Code ───────
 function validarDocumentoQR() {
-  if (codeType !== 'qr') return true;
+  if (!_temQR()) return true;   // só exige documento quando há QR (qr ou misto)
   const doc  = (document.getElementById('documento')?.value || '').trim();
   const tipo = document.getElementById('tipo-doc')?.value || 'CNPJ';
   const nums = doc.replace(/\D/g, '');
@@ -2862,7 +2876,7 @@ function verificarDocumento() {
 function _atualizarBadgePadroes() {
   const badge = document.getElementById('patterns-mode-badge');
   if (!badge || !codeType) return;
-  badge.textContent = codeType === 'qr' ? 'QR Code' : 'Código de Barras';
+  badge.textContent = _nomeTipo();
 }
 
 // ── Ctrl+Scroll para zoom ─────────────────────────────────────────
@@ -2963,15 +2977,7 @@ function handleArteInput(ev) {
       // Tipo
       codeType = p.codeType;
       window.codeType = codeType;
-      const isQR = codeType === 'qr';
-      document.getElementById('type-badge').textContent = isQR ? 'QR Code' : 'Código de Barras';
-      document.getElementById('btn-code-ico').textContent = isQR ? '📱' : '🔢';
-      document.getElementById('btn-code-lbl').textContent = isQR ? 'QR Code' : 'Código de Barras';
-      document.getElementById('genbar-qr').style.display = isQR ? 'flex' : 'none';
-      document.getElementById('genbar-bc').style.display = isQR ? 'none'  : 'flex';
-      if (!isQR && typeof atualizarLeituraPrefixo === 'function') atualizarLeituraPrefixo();
-      document.getElementById('btn-qr-img').style.display = isQR ? 'flex' : 'none';
-      document.getElementById('btn-bc-img').style.display = isQR ? 'none' : 'flex';
+      _aplicarTipoUI();
 
       // Canvas
       elements  = JSON.parse(JSON.stringify(p.elements));
@@ -3037,8 +3043,8 @@ let configSistema = JSON.parse(localStorage.getItem('configSistema') || 'null') 
 };
 
 function abrirConfigs() {
-  document.getElementById('cfg-qr-sec').style.display = codeType === 'qr' ? 'block' : 'none';
-  document.getElementById('cfg-bc-sec').style.display = codeType === 'barcode' ? 'block' : 'none';
+  document.getElementById('cfg-qr-sec').style.display = _temQR() ? 'block' : 'none';
+  document.getElementById('cfg-bc-sec').style.display = _temBC() ? 'block' : 'none';
   document.getElementById('cfg-qr-correcao').value = configSistema.qr_correcao;
   document.getElementById('cfg-qr-cor').value = configSistema.qr_cor_modulo;
   document.getElementById('cfg-qr-hex').textContent = configSistema.qr_cor_modulo;
@@ -4256,9 +4262,9 @@ function buildLayout() {
   return {
     tipo_codigo: codeType,
     elementos: elements,
-    documento: codeType === 'qr' ? document.getElementById('documento').value : '',
+    documento: _temQR() ? document.getElementById('documento').value : '',
     tipo_doc: document.getElementById('tipo-doc').value,
-    bc_prefixo: codeType === 'barcode' ? (document.getElementById('bc-prefixo').value || '/') : '/',
+    bc_prefixo: _temBC() ? (document.getElementById('bc-prefixo').value || '/') : '/',
     canvas_w: parseInt(document.getElementById('cv-w').value) || 400,
     canvas_h: parseInt(document.getElementById('cv-h').value) || 600,
     fonte_path: document.getElementById('fonte-sel').value,

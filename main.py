@@ -166,8 +166,8 @@ def listar_fontes():
 
 
 def _validar_documento_qr(cfg: dict) -> None:
-    """Garante que o documento esteja preenchido corretamente quando tipo_codigo == 'qr'."""
-    if cfg.get("tipo_codigo") != "qr":
+    """Garante o documento preenchido quando há QR (tipo 'qr' ou 'misto')."""
+    if cfg.get("tipo_codigo") not in ("qr", "misto"):
         return
     nums     = re.sub(r"\D", "", cfg.get("documento", "").strip())
     tipo_doc = cfg.get("tipo_doc", "CNPJ").upper()
@@ -914,7 +914,7 @@ def renderizar_comanda(background, numero, cfg, escala: float = 1.0):
     sy = bg_h / max(canvas_h, 1)
 
     draw = ImageDraw.Draw(bg)
-    dado_base = aplicar_mascara(documento, tipo_doc) if tipo == "qr" else ""
+    dado_base = aplicar_mascara(documento, tipo_doc) if tipo in ("qr", "misto") else ""
     cfg_sistema = cfg.get("config_sistema", {})
 
     # Ordenar por z-index
@@ -926,11 +926,11 @@ def renderizar_comanda(background, numero, cfg, escala: float = 1.0):
         h = max(int(el.get("h", 100) * sy), 1)
         rot = el.get("rot", 0)
 
-        if el_type == "qr" and tipo == "qr":
+        if el_type == "qr" and tipo in ("qr", "misto"):
             qr_img = gerar_qr(numero, dado_base, min(w, h), rot, cfg_sistema)
             bg.paste(qr_img, (x, y), qr_img)
 
-        elif el_type == "barcode" and tipo == "barcode":
+        elif el_type == "barcode" and tipo in ("barcode", "misto"):
             prefixo = cfg.get("bc_prefixo", "/")
             cortev = el.get("bc_cortev", 27)
             cortee = el.get("bc_cortee", 8)

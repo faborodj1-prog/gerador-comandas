@@ -79,6 +79,19 @@ Além do barcode na comanda, há a exportação **standalone em imagem/ZIP**
 (`_gerar_barcode_imagem`), análoga à do QR. Esse código avulso **inclui o número
 legível (HRT)** abaixo das barras.
 
+### Modo "misto" (QR + Código de Barras na mesma comanda)
+
+Além de `qr` e `barcode`, existe `tipo_codigo = "misto"`: a comanda tem **os dois
+códigos juntos**, cada um seguindo sua regra (QR = URL base64 + documento
+obrigatório; barcode = Code128 do prefixo+número). Um único intervalo gera ambos.
+
+- **Backend** (`renderizar_comanda`, `_validar_documento_qr`): usar sempre
+  `tipo in ("qr","misto")` para o QR e `tipo in ("barcode","misto")` para o barcode.
+- **Frontend**: helpers `_temQR()` / `_temBC()` (`'misto'` conta como ambos) e
+  `_aplicarTipoUI()` — **fonte única** da UI por tipo (badge, genbars, botões de
+  adicionar QR/barcode, botões de exportar imagem). `startEditor`, `loadPattern` e
+  `handleArteInput` chamam `_aplicarTipoUI()`. No misto o documento é obrigatório.
+
 ⚠️ **python-barcode 0.15.x:** as opções do `ImageWriter` (module_width,
 write_text, etc) só têm efeito quando passadas em `obj.write(buf, options={...})`.
 `writer.set_options({...})` é **ignorado** — o `gerar_barcode` da comanda "funciona"
