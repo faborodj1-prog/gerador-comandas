@@ -734,12 +734,22 @@ def gerar_qr(numero, dado_base, tamanho, rotacao, cfg_sistema=None):
     cor_modulo = cfg.get("qr_cor_modulo", "#000000")
     fundo_raw  = cfg.get("qr_fundo", "#ffffff")
     back_color = (0, 0, 0, 0) if fundo_raw == "transparent" else fundo_raw
+    border = 2
 
-    qr = qrcode.QRCode(version=None, error_correction=correcao, box_size=10, border=2)
+    # box_size inteiro em vez de 10 fixo + LANCZOS: com LANCZOS o resize para um
+    # tamanho qualquer deixava os módulos desalinhados/borrados (QR "torto").
+    # Aqui o nativo fica próximo do alvo e o NEAREST mantém os módulos nítidos.
+    probe = qrcode.QRCode(version=None, error_correction=correcao, box_size=1, border=0)
+    probe.add_data(conteudo)
+    probe.make(fit=True)
+    modulos  = probe.modules_count + border * 2
+    box_size = max(1, tamanho // modulos)
+
+    qr = qrcode.QRCode(version=None, error_correction=correcao, box_size=box_size, border=border)
     qr.add_data(conteudo)
     qr.make(fit=True)
     img = qr.make_image(fill_color=cor_modulo, back_color=back_color).convert("RGBA")
-    img = img.resize((tamanho, tamanho), Image.Resampling.LANCZOS)
+    img = img.resize((tamanho, tamanho), Image.Resampling.NEAREST)
     if rotacao:
         img = img.rotate(rotacao, expand=True)
     return img
